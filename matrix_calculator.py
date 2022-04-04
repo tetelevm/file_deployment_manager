@@ -1,8 +1,12 @@
+from __future__ import annotations
+
+
 class Device:
     """
     A class that describes a single device (i.e. a computer, switch, or
-    server). Contains the next data:
+    server). After initialization is immutable.
 
+    Contains the next data:
     * name - name of the device. A string that consists of `2 letters +
         number`.
     * delay - device delay in milliseconds. In fact, only for switches,
@@ -12,10 +16,10 @@ class Device:
         Speed in bits per second.
     """
 
-    def __init__(self, name: str, delay: int):
-        self.name: str = name
-        self.delay: int = delay
-        self.speeds: dict[str, int] = dict()
+    def __init__(self, name: str, delay: float):
+        self.name = name
+        self.delay = delay
+        self.speeds: dict[str, float] = dict()
 
     def __str__(self):
         active_connections = [
@@ -27,6 +31,66 @@ class Device:
             name=self.name,
             connections=", ".join(active_connections)
         )
+
+
+class Path:
+    """
+    The class of the file path from the server to the computer. It is
+    used to calculate the best time in which the user can get the file.
+
+    Contains values:
+    * devices - list of devices through which the file passes
+    * min_throughput - minimum throughput all the way, its bottle neck
+    * delay - total delay of all devices
+
+    The devices data is only needed for as long as the paths are
+    calculated, after the calculation the time to get the file is
+    sufficient.
+    """
+
+    def __init__(self, first_device: Device | list[Device]):
+        if type(first_device) == list:
+            # for copying
+            self.devices = first_device.copy()
+            return
+
+        self.devices: list[Device] = [first_device]
+        self.min_throughput = 8 * 2 ** 64  # max throughput
+        self.delay = first_device.delay  # 0, if first device has no delays
+
+    def add_device(self, device: Device):
+        """
+        Adds a new device to the list of used devices and updates its
+        own parameters.
+        """
+
+        self.delay += device.delay
+        self.min_throughput = min(
+            self.min_throughput,
+            self.devices[-1].speeds[device.name]
+        )
+        self.devices.append(device)
+
+    def copy(self) -> Path:
+        """
+        Return a copy of the path.
+        """
+
+        new_path = Path(self.devices)
+        new_path.min_throughput = self.min_throughput
+        new_path.delay = self.delay
+        return new_path
+
+    def get_transfer_time(self, file_size: float) -> float:
+        """
+        Calculates how many seconds it takes to transfer a file via a
+        this path.
+        """
+
+        file_size *= 8  # converting bytes to bits
+        push_time = file_size / self.min_throughput  # b / (b/s) = s
+        delay_on_sec = self.delay * 1000
+        return push_time + delay_on_sec
 
 
 class ResultMatrix:
@@ -52,7 +116,7 @@ class Calculator:
 
     It needs it to start the calculation:
 
-    * file_sizes - file sizes (in mb), which are planned to be
+    * file_sizes - file sizes (in bytes), which are planned to be
         transferred
     * counts - the number of servers, each layer of switches and
         computers
@@ -75,7 +139,7 @@ class Calculator:
         cs_to_sv: list[list[float]],
     ):
         self.counts = counts
-        self.sizes = file_sizes
+        self.file_sizes = file_sizes
         if len(delays) == 2:
             # if specified only for switches
             delays = [
@@ -84,59 +148,72 @@ class Calculator:
                 delays[1],  # cloud switch delays
                 [0] * counts["sv"]  # server delays
             ]
-        self.delays = delays
 
+        # Creating all devices
+        # the `self.devices` dictionary has as key the string
+        # "{type from [pc, ls, cs, sv]}{number}", for example "ls12", "sv4".
         self.devices: dict[str, Device] = dict()
-        self.init_devices(pc_to_ls, ls_to_cs, cs_to_sv)
-
-    def init_devices(self, pc_to_ls, ls_to_cs, cs_to_sv):
-        """
-        A method for creating devices and connections between them.
-
-        The `self.devices` dictionary has as key the string
-        "{type from [pc, ls, cs, sv]}{number}", for example "ls12", "sv4".
-        """
-
-        # creating all devices
         for (type_index, dev_type) in enumerate(["pc", "ls", "cs", "sv"]):
-            current_delays = self.delays[type_index]
+            current_delays = delays[type_index]
             for dev_ind in range(self.counts[dev_type]):
                 dev_name = f"{dev_type}{dev_ind}"
                 self.devices[dev_name] = Device(dev_name, current_delays[dev_ind])
 
-        # initialize three levels of device connection
-        level_data = [
-            {"from": "pc", "to": "ls", "array": pc_to_ls},
-            {"from": "ls", "to": "cs", "array": ls_to_cs},
-            {"from": "cs", "to": "sv", "array": cs_to_sv},
-        ]
-        for level in level_data:
-            from_, to, array = level["from"], level["to"], level["array"]
-            array: list[list[int]]
+        # Initialize three levels of device connection
+        levels = {
+            ("pc", "ls"): pc_to_ls,
+            ("ls", "cs"): ls_to_cs,
+            ("cs", "sv"): cs_to_sv,
+        }
+        for ((from_, to), array) in levels.items():
+            for f_index in range(self.counts[from_]):
+                f_device = self.devices[f"{from_}{f_index}"]
+                for t_index in range(self.counts[to]):
+                    speed = array[f_index][t_index]
+                    if speed == 0:
+                        continue
+                    f_device.speeds[f"{to}{t_index}"] = speed
 
-            for from_index in range(self.counts[from_]):
-                from_name = f"{from_}{from_index}"
-                for to_index in range(self.counts[to]):
-                    to_name = f"{to}{to_index}"
-                    speed = array[from_index][to_index]
-                    self.devices[from_name].speeds[to_name] = speed
-                    self.devices[to_name].speeds[from_name] = speed
+    def find_best_time(self, file_size: float, sv_name: str, pc_name: str) -> float:
+        pass
+
+    def calculate(self) -> ResultMatrix:
+        # array of best times from 3 dimensions: [file][server][computer]
+        result_matrix = [
+            # each file
+            [
+                # each server
+                [
+                    # each computer
+                    self.find_best_time(
+                        self.file_sizes[file_index],
+                        f"sv{sv_index}",
+                        f"pc{pc_index}",
+                    )
+                    for pc_index in range(self.counts["pc"])
+                ]
+                for sv_index in range(self.counts["sv"])
+            ]
+            for file_index in range(self.counts["file"])
+        ]
+
+        return ResultMatrix(result_matrix)
 
 
 def main():
     # the number of computer, local switch, cloud switch, server
-    counts = {"files": 20,  "pc": 3, "ls": 3, "cs": 6, "sv": 2}
+    counts = {"files": 16,  "pc": 3, "ls": 3, "cs": 6, "sv": 2}
 
     # the size of each file
     sizes = [
-        25, 92, 93, 64, 71, 56, 14, 37, 65, 22, 61, 95, 100, 99, 24, 13,
-        80, 40, 64, 74,
+        7602176, 6815744, 7077888, 2359296, 6553600, 4980736, 4194304, 1835008,
+        4456448, 2359296, 2359296, 1572864, 2883584, 5767168, 7864320, 2621440,
     ]
 
     # delays for switches (for computers and servers are hidden)
     delays = [
-        [4, 6, 2],  # local
-        [5, 2, 4, 7, 1, 1],  # cloud
+        [100, 75, 100],  # local
+        [50, 25, 40, 75, 25, 50],  # cloud
     ]
 
     pc_to_ls = [
@@ -162,8 +239,8 @@ def main():
     ]
 
     calc = Calculator(counts, sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv)
-    for dev in sorted(calc.devices.values(), key=lambda d: d.name):
-        print(dev)
+    matrix = calc.calculate()
+    print(matrix)
 
 
 if __name__ == '__main__':
