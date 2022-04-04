@@ -25,6 +25,10 @@ Restrictive conditions:
 - each server has a limited storage space
 - it is not necessary to calculate `the best' location, only `acceptable'
     (that is, you need to use optimization algorithms in search)
+
+Additional restrictive condition (it was not in the original version, but
+logically it should be):
+- any file path has the form "server -> cloud switch -> local switch -> computer"
 ```
 
 
