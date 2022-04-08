@@ -60,6 +60,11 @@ class Path:
         self.min_throughput = 8 * 2 ** 64  # max throughput
         self.delay = first_device.delay  # 0, if first device has no delays
 
+    def __ge__(self, other: Path):
+        throughput_ge = self.min_throughput >= other.min_throughput
+        delay_le = self.delay <= other.delay
+        return throughput_ge and delay_le
+
     @property
     def last_device(self) -> Device:
         """
@@ -201,6 +206,70 @@ class Calculator:
         # List of all paths from each computer to each server
         self.paths: dict[tuple[str, str], list[Path]] = dict()
 
+    @staticmethod
+    def filter_similar_paths(paths: list[Path]) -> list[Path]:
+        """
+        Filters similar paths (paths with the same beginning and end).
+        Each path is compared to each path (given that the bad ones are
+        only compared once).
+
+        If the path is unambiguously worse (less throughput and/or more
+        delay), it is deleted.
+        If the two paths are identical in parameters, one of them is
+        also deleted.
+        If one path has more throughput and the other has less delay,
+        then both are retained.
+        """
+
+        satisfactory_paths = []
+        while paths:
+            # cut first path from all
+            current = paths.pop(0)
+
+            # comparison with others
+            index = 0
+            is_satisfactory = True
+            # iterate over the others
+            while index < len(paths):
+                for_comparison = paths[index]
+
+                # current is bad, stop iteration
+                if for_comparison >= current:
+                    is_satisfactory = False
+                    break
+                # iterated is bad, delete it
+                elif current >= for_comparison:
+                    paths.pop(index)
+                # one is larger, the other is quicker, to next path
+                else:
+                    index += 1
+
+            # no one is faster than this
+            if is_satisfactory:
+                satisfactory_paths.append(current)
+
+        return satisfactory_paths
+
+    @classmethod
+    def remove_bad_paths(cls, paths: list[Path]) -> list[Path]:
+        """
+        A method for path optimization.
+        Looks for paths whose last element is the same (the first
+        element is expected to be the same too), and filters them using
+        the `.filter_similar_paths()` method.
+        """
+
+        paths_by_latest = dict()
+        for path in paths:
+            target = paths_by_latest.setdefault(path.last_device.name, [])
+            target.append(path)
+
+        good_paths = []
+        for similar_paths in paths_by_latest.values():
+            good_paths.extend(cls.filter_similar_paths(similar_paths))
+
+        return good_paths
+
     def make_paths_from_pc(self, pc_name):
         """
         Calculates paths from computers to servers.
@@ -224,6 +293,8 @@ class Calculator:
                     new_path.add_device(self.devices[new_device_name])
                     new_paths.append(new_path)
 
+            # small optimization - unambiguously non-optimal ones are removed
+            new_paths = self.remove_bad_paths(new_paths)
             paths_to_add = []
             for path in new_paths:
                 if path.last_device.is_target:
@@ -231,6 +302,7 @@ class Calculator:
                 else:
                     paths_to_add.append(path)
 
+        finished_paths = self.remove_bad_paths(finished_paths)
         for sv_name in self.device_names["sv"]:
             paths = [
                 path
@@ -298,18 +370,18 @@ def main():
     # delays for switches (for computers and servers are hidden)
     delays = [
         [50, 50, 50],  # local
-        [50, 50, 50, 50],  # cloud
+        [50, 50, 50, 500],  # cloud
     ]
 
     pc_to_ls = [
         [100, 100, 0],  # 2 pk  ^v
-        [100, 100, 100],
+        [100, 100, 300],
         # 3 ls  <>
     ]
     ls_to_cs = [
         [200, 200, 0,   0],  # 3 ls  ^v
         [0,   200, 200, 0],
-        [0,   0,   200, 200],
+        [0,   0,   100, 300],
         # 4 cs  <>
     ]
     cs_to_sv = [
@@ -322,8 +394,21 @@ def main():
 
     calc = Calculator(counts, sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv)
     matrix = calc.calculate()
-    for file_times in matrix.matrix:
-        print(file_times)
+
+    table = "\n".join(
+        # file
+        " || ".join(
+            # server
+            "   ".join(
+                # computer
+                str(pc_time).ljust(9)
+                for pc_time in server_times
+            )
+            for server_times in file_times
+        )
+        for file_times in matrix.matrix
+    )
+    print(table)
 
 
 if __name__ == '__main__':
