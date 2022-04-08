@@ -14,11 +14,13 @@ class Device:
     * speeds - dictionary of values {`device name``: ``speed``}.
         Represents all values for the current device to its neighbors.
         Speed in bits per second.
+    * is_target - indicator showing whether the device is a final.
     """
 
-    def __init__(self, name: str, delay: float):
+    def __init__(self, name: str, delay: float, is_target: bool):
         self.name = name
         self.delay = delay
+        self.is_target = is_target
         self.speeds: dict[str, float] = dict()
 
     def __str__(self):
@@ -57,6 +59,13 @@ class Path:
         self.devices: list[Device] = [first_device]
         self.min_throughput = 8 * 2 ** 64  # max throughput
         self.delay = first_device.delay  # 0, if first device has no delays
+
+    @property
+    def last_device(self) -> Device:
+        """
+        Returns a link to the last device.
+        """
+        return self.devices[-1]
 
     def add_device(self, device: Device):
         """
@@ -129,6 +138,8 @@ class Calculator:
     An example of usage and data can be found in the `main` function.
     """
 
+    DEVISE_TYPES = ("pc", "ls", "cs", "sv")
+
     def __init__(
         self,
         counts: dict[str, int],
@@ -139,6 +150,14 @@ class Calculator:
         cs_to_sv: list[list[float]],
     ):
         self.counts = counts
+        self.device_names: dict[str, list[str]] = {
+            name: [
+                f"{name}{index}"
+                for index in range(self.counts[name])
+            ]
+            for name in self.DEVISE_TYPES
+        }
+
         self.file_sizes = file_sizes
         if len(delays) == 2:
             # if specified only for switches
@@ -153,11 +172,16 @@ class Calculator:
         # the `self.devices` dictionary has as key the string
         # "{type from [pc, ls, cs, sv]}{number}", for example "ls12", "sv4".
         self.devices: dict[str, Device] = dict()
-        for (type_index, dev_type) in enumerate(["pc", "ls", "cs", "sv"]):
+        for (type_index, dev_type) in enumerate(self.DEVISE_TYPES):
             current_delays = delays[type_index]
+            is_target = dev_type == "sv"
             for dev_ind in range(self.counts[dev_type]):
                 dev_name = f"{dev_type}{dev_ind}"
-                self.devices[dev_name] = Device(dev_name, current_delays[dev_ind])
+                self.devices[dev_name] = Device(
+                    dev_name,
+                    current_delays[dev_ind],
+                    is_target
+                )
 
         # Initialize three levels of device connection
         levels = {
@@ -174,10 +198,75 @@ class Calculator:
                         continue
                     f_device.speeds[f"{to}{t_index}"] = speed
 
-    def find_best_time(self, file_size: float, sv_name: str, pc_name: str) -> float:
-        pass
+        # List of all paths from each computer to each server
+        self.paths: dict[tuple[str, str], list[Path]] = dict()
+
+    def make_paths_from_pc(self, pc_name):
+        """
+        Calculates paths from computers to servers.
+        Since various files may have different weights, then various
+        files may have different best paths, and therefore all possible
+        paths must be calculated.
+        """
+
+        pc = self.devices[pc_name]
+        finished_paths = []
+
+        paths_to_add = [Path(pc)]
+        while paths_to_add:
+            # iterate over the next layer
+            new_paths = []
+            for path in paths_to_add:
+                # iterate over each device in the current level
+                for new_device_name in path.last_device.speeds:
+                    # iterate over each device in the next level
+                    new_path = path.copy()
+                    new_path.add_device(self.devices[new_device_name])
+                    new_paths.append(new_path)
+
+            paths_to_add = []
+            for path in new_paths:
+                if path.last_device.is_target:
+                    finished_paths.append(path)
+                else:
+                    paths_to_add.append(path)
+
+        for sv_name in self.device_names["sv"]:
+            paths = [
+                path
+                for path in finished_paths
+                if path.last_device.name == sv_name
+            ]
+            self.paths[(pc_name, sv_name)] = paths
+
+    def get_best_time(self, file_size: float, sv_name: str, pc_name: str) -> float:
+        """
+        Returns the minimum possible file transfer time for
+        "computer-server".
+        """
+
+        return min(
+            path.get_transfer_time(file_size)
+            for path in self.paths[(pc_name, sv_name)]
+        )
 
     def calculate(self) -> ResultMatrix:
+        """
+        Creates a three-dimensional table of file transfer times. The
+        table has dimensions `table[file][server][computer]`, the values
+        in the cells are how many seconds it takes to transfer the files.
+
+        The current implementation creates all possible paths between
+        computers and servers, and then searches among them for the
+        shortest one for each file.
+        (This is not the most optimal method, if there will be a large
+        nesting or a lot of devices, it is better to use another one.)
+        """
+
+        self.paths = dict()
+        for pc_name in self.device_names["pc"]:
+            self.make_paths_from_pc(pc_name)
+
         # array of best times from 3 dimensions: [file][server][computer]
         result_matrix = [
             # each file
@@ -185,16 +274,12 @@ class Calculator:
                 # each server
                 [
                     # each computer
-                    self.find_best_time(
-                        self.file_sizes[file_index],
-                        f"sv{sv_index}",
-                        f"pc{pc_index}",
-                    )
-                    for pc_index in range(self.counts["pc"])
+                    self.get_best_time(file_size, sv_name, pc_name)
+                    for pc_name in self.device_names["pc"]
                 ]
-                for sv_index in range(self.counts["sv"])
+                for sv_name in self.device_names["sv"]
             ]
-            for file_index in range(self.counts["file"])
+            for file_size in self.file_sizes
         ]
 
         return ResultMatrix(result_matrix)
@@ -202,7 +287,7 @@ class Calculator:
 
 def main():
     # the number of computer, local switch, cloud switch, server
-    counts = {"files": 16,  "pc": 3, "ls": 3, "cs": 6, "sv": 2}
+    counts = {"files": 16,  "pc": 2, "ls": 3, "cs": 4, "sv": 2}
 
     # the size of each file
     sizes = [
@@ -212,35 +297,33 @@ def main():
 
     # delays for switches (for computers and servers are hidden)
     delays = [
-        [100, 75, 100],  # local
-        [50, 25, 40, 75, 25, 50],  # cloud
+        [50, 50, 50],  # local
+        [50, 50, 50, 50],  # cloud
     ]
 
     pc_to_ls = [
-        [231, 0, 0],  # 3 pk
-        [0, 482, 0],
-        [0, 0, 774],
-        # 3 ls
+        [100, 100, 0],  # 2 pk  ^v
+        [100, 100, 100],
+        # 3 ls  <>
     ]
     ls_to_cs = [
-        [0, 115, 113, 809, 0, 0],  # 3 ls
-        [727, 0, 0, 0, 108, 0],
-        [0, 343, 0, 919, 0, 796],
-        # 6 cs
+        [200, 200, 0,   0],  # 3 ls  ^v
+        [0,   200, 200, 0],
+        [0,   0,   200, 200],
+        # 4 cs  <>
     ]
     cs_to_sv = [
-        [507, 0],  # 6 cs
-        [120, 666],
-        [636, 813],
-        [0, 811],
-        [0, 972],
-        [0, 785],
-        # 2 sv
+        [300, 0],  # 4 cs  ^v
+        [300, 300],
+        [300, 0],
+        [0,   300],
+        # 2 sv  <>
     ]
 
     calc = Calculator(counts, sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv)
     matrix = calc.calculate()
-    print(matrix)
+    for file_times in matrix.matrix:
+        print(file_times)
 
 
 if __name__ == '__main__':
