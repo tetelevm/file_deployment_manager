@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 
+__all__ = [
+    "TimeMatrix",
+    "MatrixCalculator",
+]
+
+
 class Device:
     """
     A class that describes a single device (i.e. a computer, switch, or
@@ -107,7 +113,7 @@ class Path:
         return push_time + delay_on_sec
 
 
-class ResultMatrix:
+class TimeMatrix:
     """
     The resulting matrix for finding optimal paths.
     Represents the time each file will take to get from each server to
@@ -122,7 +128,7 @@ class ResultMatrix:
         return self.matrix[file][server][pc]
 
 
-class Calculator:
+class MatrixCalculator:
     """
     A class for calculating the best path matrix.
     It finds the best paths for each file from each server to each
@@ -322,7 +328,7 @@ class Calculator:
             for path in self.paths[(pc_name, sv_name)]
         )
 
-    def calculate(self) -> ResultMatrix:
+    def calculate(self) -> TimeMatrix:
         """
         Creates a three-dimensional table of file transfer times. The
         table has dimensions `table[file][server][computer]`, the values
@@ -354,7 +360,7 @@ class Calculator:
             for file_size in self.file_sizes
         ]
 
-        return ResultMatrix(result_matrix)
+        return TimeMatrix(result_matrix)
 
 
 def main():
@@ -392,7 +398,7 @@ def main():
         # 2 sv  <>
     ]
 
-    calc = Calculator(counts, sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv)
+    calc = MatrixCalculator(counts, sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv)
     matrix = calc.calculate()
 
     table = "\n".join(
