@@ -109,7 +109,7 @@ class Path:
 
         file_size *= 8  # converting bytes to bits
         push_time = file_size / self.min_throughput  # b / (b/s) = s
-        delay_on_sec = self.delay * 1000
+        delay_on_sec = self.delay / 1000
         return push_time + delay_on_sec
 
 
