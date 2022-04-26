@@ -365,12 +365,14 @@ class MatrixCalculator:
 
 def main():
     # the number of computer, local switch, cloud switch, server
-    counts = {"files": 16,  "pc": 2, "ls": 3, "cs": 4, "sv": 2}
+    counts = {"files": 10,  "pc": 2, "ls": 3, "cs": 4, "sv": 2}
 
     # the size of each file
+    byte_on_mb = 2 ** 20
     sizes = [
-        7602176, 6815744, 7077888, 2359296, 6553600, 4980736, 4194304, 1835008,
-        4456448, 2359296, 2359296, 1572864, 2883584, 5767168, 7864320, 2621440,
+        54 * byte_on_mb, 117 * byte_on_mb, 86 * byte_on_mb, 89 * byte_on_mb,
+        78 * byte_on_mb, 23 * byte_on_mb, 48 * byte_on_mb, 20 * byte_on_mb,
+        72 * byte_on_mb, 10 * byte_on_mb
     ]
 
     # delays for switches (for computers and servers are hidden)
@@ -379,22 +381,23 @@ def main():
         [50, 50, 50, 500],  # cloud
     ]
 
+    bit_on_mb = byte_on_mb * 8
     pc_to_ls = [
-        [100, 100, 0],  # 2 pk  ^v
-        [100, 100, 300],
+        [10 * bit_on_mb, 10 * bit_on_mb, 0 * bit_on_mb],  # 2 pk  ^v
+        [10 * bit_on_mb, 10 * bit_on_mb, 30 * bit_on_mb],
         # 3 ls  <>
     ]
     ls_to_cs = [
-        [200, 200, 0,   0],  # 3 ls  ^v
-        [0,   200, 200, 0],
-        [0,   0,   100, 300],
+        [20 * bit_on_mb, 20 * bit_on_mb, 0,   0],  # 3 ls  ^v
+        [0,   20 * bit_on_mb, 20 * bit_on_mb, 0],
+        [0,   0,   10 * bit_on_mb, 30 * bit_on_mb],
         # 4 cs  <>
     ]
     cs_to_sv = [
-        [300, 0],  # 4 cs  ^v
-        [300, 300],
-        [300, 0],
-        [0,   300],
+        [30 * bit_on_mb, 0],  # 4 cs  ^v
+        [30 * bit_on_mb, 30 * bit_on_mb],
+        [30 * bit_on_mb, 0],
+        [0,   30 * bit_on_mb],
         # 2 sv  <>
     ]
 
@@ -407,13 +410,15 @@ def main():
             # server
             "   ".join(
                 # computer
-                str(pc_time).ljust(9)
+                format(pc_time, ".2f").ljust(12)
                 for pc_time in server_times
             )
             for server_times in file_times
         )
         for file_times in matrix.matrix
     )
+    print("< file on line >  < server between `||` >  < pc on cell >")
+    print()
     print(table)
 
 
