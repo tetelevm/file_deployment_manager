@@ -1,7 +1,7 @@
 __all__ = [
-    "BranchBndBound",
+    "BranchAndBound",
 ]
 
 
-class BranchBndBound:
+class BranchAndBound:
     pass
