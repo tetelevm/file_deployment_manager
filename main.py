@@ -11,7 +11,22 @@ this algorithm:
 
 from config_parser import ConfigParser
 from matrix_calculator import MatrixCalculator, TimeMatrix
-from algorithm_executor import AlgorithmExecutor
+from algorithms import (
+    AntColony,
+    BeesColony,
+    BranchAndBound,
+    GeneticAlgorithm,
+    SimulatedAnnealing,
+)
+
+
+available_algorithms = {
+    "ant_colony": AntColony,
+    "bees_colony": BeesColony,
+    "branch_and_bound": BranchAndBound,
+    "genetic_algorithm": GeneticAlgorithm,
+    "simulated_annealing": SimulatedAnnealing,
+}
 
 
 def main():
