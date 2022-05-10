@@ -73,7 +73,7 @@ class BaseAlgorithm():
         self.matrix = self.create_initial_matrix()
 
         self.stop = False
-        self.best_value = 10**100
+        self.best_value = self.get_deployment_result(self.matrix)
 
     def create_initial_matrix(self) -> list[list[int]]:
         """
