@@ -121,6 +121,12 @@ class BaseAlgorithm():
                                   / < sixth >/                          |
                                       in practice this file would fit here
                                       but the script will raise an error
+
+        There may also be errors if the download is not available
+        between some computers and servers, as the first initiation (in
+        the current version) does not take them into account. For
+        example, if a file cannot be downloaded anywhere from the first
+        server, the file will be installed there anyway.
         """
 
         # [[X for each server] for each file]
@@ -179,13 +185,14 @@ class BaseAlgorithm():
         """
 
         for pc_i in range(self.counts["pc"]):
-            possible_places = sum(
-                deployment_matrix[file_i][server_i]
-                for server_i in range(self.counts["sv"])
-                for file_i in range(self.counts["files"])
-            )
-            if not possible_places:
-                return False
+            for file_i in range(self.counts["files"]):
+                possible_places = sum(
+                    self.time_matrix[file_i, server_i, pc_i]
+                    for server_i in range(self.counts["sv"])
+                    if deployment_matrix[file_i][server_i]
+                )
+                if not possible_places:
+                    return False
 
         for server_i in range(self.counts["sv"]):
             required_space = sum(
@@ -224,11 +231,11 @@ def get_test_data():
         72 * byte_on_mb, 10 * byte_on_mb
     ]
 
-    server_prices = [10, 20]
+    server_prices = [10, 100]
     server_spaces = [400 * byte_on_mb, 600 * byte_on_mb]
 
     time_matrix_list = [
-        [[5.5, 5.5], [5.5, 2.35]],
+        [[0, 0], [5.5, 5.5]],
         [[11.8, 11.8], [11.8, 4.45]],
         [[8.7, 8.7], [8.7, 3.42]],
         [[9.0, 9.0], [9.0, 3.52]],
@@ -249,11 +256,9 @@ def main():
     args = get_test_data()
     alg = BaseAlgorithm(*args)
     check_result = alg.check_prerequisite(alg.matrix)
-    deployment_result = alg.get_deployment_result(alg.matrix)
-
     print(alg.matrix)
     print(check_result)
-    print(deployment_result)
+    print(alg.best_value)
 
 
 if __name__ == '__main__':
