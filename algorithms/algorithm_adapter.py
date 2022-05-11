@@ -44,6 +44,7 @@ class BaseAlgorithm():
             server_spaces: list[float],
             time_matrix: TimeMatrix,
             coefficient: float,
+            print_logs: bool = False
     ):
         self.counts = counts
         self.time_matrix = time_matrix
@@ -65,6 +66,7 @@ class BaseAlgorithm():
 
         self.stop = False
         self.best_value = self.get_deployment_result(self.matrix)
+        self.print_logs = print_logs
 
     def create_initial_matrix(self) -> list[list[int]]:
         """
