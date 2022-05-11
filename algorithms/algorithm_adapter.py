@@ -32,17 +32,8 @@ class BaseAlgorithm():
     Takes all parameters, creates a price matrix and a file distribution
     matrix, and then calculates the optimal distribution.
 
-    The public call points of the class are the `.do_one_step()` method,
-    the `.stop` attribute and the `.matrix` attribute obtained after
-    the calculation.
-
-    The use of the class is to create the next cycle:
-
-    # class Algorithm(BaseAlgorithm): pass
-    algorithm = Algorithm(...)
-    while not algorithm.stop:
-        algorithm.do_one_step()
-    print(algorithm.matrix)
+    The public call points of the class are the `.calculate()` method
+    and the `.matrix` attribute obtained after the calculation.
     """
 
     def __init__(
@@ -204,6 +195,15 @@ class BaseAlgorithm():
                 return False
 
         return True
+
+    def calculate(self):
+        """
+        Calculates until it stops :)
+        Just executes its method `.do_one_step()` until it set
+        `self.stop = True`.
+        """
+        while not self.stop:
+            self.do_one_step()
 
     @abstractmethod
     def do_one_step(self):
