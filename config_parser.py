@@ -1,6 +1,8 @@
 import json
 from argparse import ArgumentParser, BooleanOptionalAction
+from typing import Type
 
+from algorithms.algorithm_adapter import BaseAlgorithm
 from algorithms import (
     AntColony,
     BeesColony,
@@ -22,7 +24,7 @@ class ConfigParser:
     The data for the calculation is described in the file `data.json`.
     """
 
-    available_algorithms = {
+    available_algorithms: dict[str, Type[BaseAlgorithm]] = {
         "ant_colony": AntColony,
         "bees_colony": BeesColony,
         "branch_and_bound": BranchAndBound,

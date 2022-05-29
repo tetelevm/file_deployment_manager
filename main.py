@@ -6,31 +6,29 @@ this algorithm:
 - parse of input data
 - time matrix calculation
 - calculation of the result using the desired algorithms
+- recording results in a file
 """
 
 
 from config_parser import ConfigParser
-from matrix_calculator import MatrixCalculator, TimeMatrix
-from algorithms import (
-    AntColony,
-    BeesColony,
-    BranchAndBound,
-    GeneticAlgorithm,
-    SimulatedAnnealing,
-)
-
-
-available_algorithms = {
-    "ant_colony": AntColony,
-    "bees_colony": BeesColony,
-    "branch_and_bound": BranchAndBound,
-    "genetic_algorithm": GeneticAlgorithm,
-    "simulated_annealing": SimulatedAnnealing,
-}
+from matrix_calculator import MatrixCalculator
 
 
 def main():
-    pass
+    # terrible codestyle, but what to do
+    (counts, file_sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv, server_prices,
+     server_spaces, coefficient) = ConfigParser.read_data()
+    algorithms = ConfigParser.get_algorithms()
+
+    matrix_calculator = MatrixCalculator(counts, file_sizes, delays, pc_to_ls,
+                                         ls_to_cs, cs_to_sv)
+    time_matrix = matrix_calculator.calculate()
+    for algorithm_name in algorithms:
+        algorithm = ConfigParser.available_algorithms[algorithm_name]
+        calculator = algorithm(counts, file_sizes, server_prices, server_spaces,
+                               time_matrix, coefficient, print_logs=True)
+        calculator.calculate()
+        print(calculator.matrix)
 
 
 if __name__ == "__main__":
