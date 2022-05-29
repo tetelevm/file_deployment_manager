@@ -39,7 +39,7 @@ class BaseAlgorithm():
     def __init__(
             self,
             counts: dict[str, int],
-            file_weights: list[float],
+            file_sizes: list[float],
             server_prices: list[float],
             server_spaces: list[float],
             time_matrix: TimeMatrix,
@@ -49,7 +49,7 @@ class BaseAlgorithm():
         self.counts = counts
         self.time_matrix = time_matrix
         self.server_spaces = server_spaces
-        self.file_weights = file_weights
+        self.file_sizes = file_sizes
         self.coefficient = coefficient
 
         self.prices = [
@@ -57,7 +57,7 @@ class BaseAlgorithm():
             [
                 # each server
                 # (weight, b) * (prices, money/mb) / (megabytes_to_bytes, mb/b)
-                file_weights[file_index] * server_prices[server_index] / 1048576
+                file_sizes[file_index] * server_prices[server_index] / 1048576
                 for server_index in range(counts["sv"])
             ]
             for file_index in range(counts["files"])
@@ -131,7 +131,7 @@ class BaseAlgorithm():
         server_ind = 0
         server_space = self.server_spaces[server_ind]
         for file_ind in range(self.counts["files"]):
-            file_weight = self.file_weights[file_ind]
+            file_weight = self.file_sizes[file_ind]
 
             while server_space < file_weight:
                 # get first server with free space more than the file weight
@@ -189,7 +189,7 @@ class BaseAlgorithm():
 
         for server_i in range(self.counts["sv"]):
             required_space = sum(
-                self.file_weights[file_i]
+                self.file_sizes[file_i]
                 for file_i in range(self.counts["files"])
                 if deployment_matrix[file_i][server_i]
             )
@@ -227,7 +227,7 @@ def get_test_data():
     counts = {"files": 10,  "pc": 2, "ls": 3, "cs": 4, "sv": 2}
 
     byte_on_mb = 2 ** 20
-    file_weights = [
+    file_sizes = [
         54 * byte_on_mb, 117 * byte_on_mb, 86 * byte_on_mb, 89 * byte_on_mb,
         78 * byte_on_mb, 23 * byte_on_mb, 48 * byte_on_mb, 20 * byte_on_mb,
         72 * byte_on_mb, 10 * byte_on_mb
@@ -251,7 +251,7 @@ def get_test_data():
     time_matrix = TimeMatrix(time_matrix_list)
     coefficient = 1
 
-    return counts, file_weights, server_prices, server_spaces, time_matrix, coefficient
+    return counts, file_sizes, server_prices, server_spaces, time_matrix, coefficient
 
 
 def main():
