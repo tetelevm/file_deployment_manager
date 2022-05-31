@@ -206,6 +206,7 @@ class BaseAlgorithm():
         """
         while not self.stop:
             self.do_one_step()
+        return self.matrix
 
     @abstractmethod
     def do_one_step(self):

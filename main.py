@@ -22,13 +22,15 @@ def main():
 
     matrix_calculator = MatrixCalculator(counts, file_sizes, delays, pc_to_ls,
                                          ls_to_cs, cs_to_sv)
+    result = {}
     time_matrix = matrix_calculator.calculate()
     for algorithm_name in algorithms:
         algorithm = DataManager.available_algorithms[algorithm_name]
         calculator = algorithm(counts, file_sizes, server_prices, server_spaces,
-                               time_matrix, coefficient, print_logs=True)
-        calculator.calculate()
-        print(calculator.matrix)
+                               time_matrix, coefficient)
+        matrix = calculator.calculate()
+        result[algorithm_name] = matrix
+    DataManager.write_result(result)
 
 
 if __name__ == "__main__":

@@ -31,6 +31,8 @@ class DataManager:
         "genetic_algorithm": GeneticAlgorithm,
         "simulated_annealing": SimulatedAnnealing,
     }
+    data_json_path = "./data.json"
+    result_json_path = "./result.json"
 
     @classmethod
     def get_algorithms(cls) -> list[str]:
@@ -53,8 +55,8 @@ class DataManager:
         parser = parser.parse_args()
         return [name for (name, val) in parser.__dict__.items() if val]
 
-    @staticmethod
-    def read_data(path: str = "./data.json"):
+    @classmethod
+    def read_data(cls, path: str = None):
         """
         Reads the data from the `data.json` file  (placed in the root of
         the project or passed in an argument), and retrieves the
@@ -64,6 +66,7 @@ class DataManager:
         way.
         """
 
+        path = path or cls.data_json_path
         with open(path) as file:
             data: dict = json.load(file)
 
@@ -97,6 +100,24 @@ class DataManager:
             data["server_spaces"],
             coefficient,
         )
+
+    @classmethod
+    def write_result(cls, result: dict, path: str = None):
+        """
+        Writes the results to a file.
+        The results are written in json format to the specified path or
+        to the default file (`result.json`).
+
+        Record format:
+        {
+            algorithm_name: result_matrix,
+            algorithm_name: result_matrix,
+        }
+        """
+
+        path = path or cls.result_json_path
+        with open(path, "w") as file:
+            json.dump(result, file)
 
 
 def main():
