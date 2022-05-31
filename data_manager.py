@@ -13,11 +13,11 @@ from algorithms import (
 
 
 __all__ = [
-    "ConfigParser",
+    "DataManager",
 ]
 
 
-class ConfigParser:
+class DataManager:
     """
     A class that parses the algorithms to compute file locations (see
     `.get_algorithms()`) and reads the input data (see `.read_data()`).
@@ -100,9 +100,9 @@ class ConfigParser:
 
 
 def main():
-    algorithms = ConfigParser.get_algorithms()
+    algorithms = DataManager.get_algorithms()
     print(algorithms)
-    data = ConfigParser.read_data()
+    data = DataManager.read_data()
     print(data)
 
 

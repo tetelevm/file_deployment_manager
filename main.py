@@ -10,21 +10,21 @@ this algorithm:
 """
 
 
-from config_parser import ConfigParser
+from data_manager import DataManager
 from matrix_calculator import MatrixCalculator
 
 
 def main():
     # terrible codestyle, but what to do
     (counts, file_sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv, server_prices,
-     server_spaces, coefficient) = ConfigParser.read_data()
-    algorithms = ConfigParser.get_algorithms()
+     server_spaces, coefficient) = DataManager.read_data()
+    algorithms = DataManager.get_algorithms()
 
     matrix_calculator = MatrixCalculator(counts, file_sizes, delays, pc_to_ls,
                                          ls_to_cs, cs_to_sv)
     time_matrix = matrix_calculator.calculate()
     for algorithm_name in algorithms:
-        algorithm = ConfigParser.available_algorithms[algorithm_name]
+        algorithm = DataManager.available_algorithms[algorithm_name]
         calculator = algorithm(counts, file_sizes, server_prices, server_spaces,
                                time_matrix, coefficient, print_logs=True)
         calculator.calculate()
