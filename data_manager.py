@@ -6,7 +6,6 @@ from algorithms.algorithm_adapter import BaseAlgorithm
 from algorithms import (
     AntColony,
     BeesColony,
-    BranchAndBound,
     GeneticAlgorithm,
     SimulatedAnnealing,
 )
@@ -27,7 +26,6 @@ class DataManager:
     available_algorithms: dict[str, Type[BaseAlgorithm]] = {
         "ant_colony": AntColony,
         "bees_colony": BeesColony,
-        "branch_and_bound": BranchAndBound,
         "genetic_algorithm": GeneticAlgorithm,
         "simulated_annealing": SimulatedAnnealing,
     }
