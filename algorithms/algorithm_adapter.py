@@ -17,6 +17,7 @@ __all__ = [
     "BaseAlgorithm",
     "RESULT_MATRIX_TYPE",
     "get_test_data",
+    "abstract_main",
 ]
 
 
@@ -208,7 +209,6 @@ class BaseAlgorithm():
             self.do_one_step()
         return self.matrix
 
-    @abstractmethod
     def do_one_step(self):
         """
         A method that is called during algorithm execution.
@@ -216,7 +216,7 @@ class BaseAlgorithm():
         work, because the method is called `while not algorithm.stop`.
         The concrete implementation defined by the algorithm.
         """
-        pass
+        self.stop = True
 
 
 def get_test_data():
@@ -255,14 +255,17 @@ def get_test_data():
     return counts, file_sizes, server_prices, server_spaces, time_matrix, coefficient
 
 
-def main():
+def abstract_main(algorithm):
     args = get_test_data()
-    alg = BaseAlgorithm(*args)
-    check_result = alg.check_prerequisite(alg.matrix)
+    alg = algorithm(*args, print_logs=True)
+
+    first_result = alg.best_value
+    alg.calculate()
+    second_result = alg.best_value
+
     print(alg.matrix)
-    print(check_result)
-    print(alg.best_value)
+    print(f"{first_result} => {second_result}")
 
 
 if __name__ == '__main__':
-    main()
+    abstract_main(BaseAlgorithm)

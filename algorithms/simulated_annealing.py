@@ -3,7 +3,7 @@ try:
     from .algorithm_adapter import BaseAlgorithm, get_test_data
 except ImportError:
     # if run as "__main__"
-    from algorithm_adapter import BaseAlgorithm, get_test_data
+    from algorithm_adapter import BaseAlgorithm, get_test_data, abstract_main
 
 
 __all__ = [
@@ -124,17 +124,5 @@ class SimulatedAnnealing(BaseAlgorithm):
             self.stop = True
 
 
-def main():
-    args = get_test_data()
-    alg = SimulatedAnnealing(*args, print_logs=True)
-
-    first_result = alg.best_value
-    alg.calculate()
-    second_result = alg.best_value
-
-    print(alg.matrix)
-    print(f"{first_result} => {second_result}")
-
-
 if __name__ == '__main__':
-    main()
+    abstract_main(SimulatedAnnealing)
