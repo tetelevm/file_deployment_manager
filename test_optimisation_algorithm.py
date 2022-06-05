@@ -3,11 +3,15 @@ This file has nothing to do with the project, it is just a tool to test
 the correctness of the realization of algorithms.
 """
 
+from __future__ import annotations
 import random
 from abc import ABC, abstractmethod
 from typing import Iterable
+from operator import attrgetter
 from tkinter import Tk, Canvas
 
+
+flip_coin = lambda: random.random() > 0.5
 
 # travelling salesman problem and drawing of the result ================
 
@@ -74,12 +78,21 @@ class Path:
                 self.points[indexes[1]].y
             )
 
-    def copy(self):
+    def copy(self) -> Path:
         path = Path(self.point_number, True)
         path.points = self.points
         path.order_visits = self.order_visits.copy()
         path.cache_len = self.cache_len
         return path
+
+    def swap_points(self):
+        i, j = random.sample(range(self.point_number), k=2)
+        points = self.order_visits
+        points[i], points[j] = points[j], points[i]
+
+    def move_point(self):
+        i, j = random.sample(range(self.point_number), k=2)
+        self.order_visits.insert(j, self.order_visits.pop(i))
 
 
 class Tester:
@@ -136,37 +149,7 @@ class AlgorithmAbstract(ABC):
 
     def __init__(self, point_number=100):
         self.path = Path(point_number)
-        self.value = self.path.length
         self.stop = False
-
-    def swap_points(self) -> Path:
-        new_path = self.path.copy()
-        points = new_path.order_visits
-
-        i, j = random.sample(range(self.path.point_number), k=2)
-        points[i], points[j] = points[j], points[i]
-
-        return new_path
-
-    def move_point(self) -> Path:
-        new_path = self.path.copy()
-        i, j = random.sample(range(self.path.point_number), k=2)
-        new_path.order_visits.insert(j, new_path.order_visits.pop(i))
-        return new_path
-
-    def make_change(self):
-        change_funcs = [self.swap_points, self.move_point]
-        for func in change_funcs:
-            new_path = func()
-            new_length = new_path.length
-            replace_path = self.make_decision(new_length)
-            if replace_path:
-                self.path = new_path
-                self.value = new_length
-
-    @abstractmethod
-    def make_decision(self, new_len: float) -> bool:
-        pass
 
     @abstractmethod
     def do_one_step(self):
@@ -180,23 +163,77 @@ class SimulatedAnnealing(AlgorithmAbstract):
         self.cooling_coefficient = 1 - (1e-01 / point_number**1.2)
 
     def make_decision(self, new_len: float) -> bool:
-        if self.value > new_len:
+        if self.path.length > new_len:
             return True
         if self.temperature > 0.001:
-            delta = (self.value - new_len) / self.value * 100
+            delta = (self.path.length - new_len) / self.path.length * 100
             return random.random() < 2.71 ** (delta / self.temperature)
         return False
 
+    def make_change(self):
+        new_path = self.path.copy()
+        new_path.swap_points()
+        if self.make_decision(new_path.length):
+            self.path = new_path
+
+        new_path = self.path.copy()
+        new_path.move_point()
+        if self.make_decision(new_path.length):
+            self.path = new_path
+
     def do_one_step(self):
         self.make_change()
-        print(f"{format(self.temperature, '.9f'): <10}  ==  {self.value}")
+        print(f"{format(self.temperature, '.9f'): <10}  ==  {self.path.length}")
         self.temperature *= self.cooling_coefficient
         if self.temperature < 1.0e-6:
             self.stop = True
 
 
+class GeneticAlgorithm(AlgorithmAbstract):
+    def __init__(self, point_number=100):
+        super().__init__(point_number)
+
+        self.population_number = 0
+        self.population_number_max = (point_number / 10) ** 2.25 * 20
+        self.child_count = 10
+        self.count_best = 10
+        self.population_count = self.child_count * self.count_best
+        self.population = self.create_descendants(self.path, self.population_count)
+
+    @staticmethod
+    def create_descendants(parent_path: Path, count: int) -> list[Path]:
+        return [parent_path.copy() for _ in range(count)]
+
+    def filter_best_paths(self):
+        paths = sorted(self.population + [self.path], key=attrgetter("length"))
+        best_paths = paths[:self.count_best]
+        self.path = best_paths[0]
+
+        new_population = []
+        for path in best_paths:
+            child = self.create_descendants(path, self.child_count)
+            new_population.extend(child)
+        self.population = new_population
+
+    def grow_generation(self):
+        # how you can cross paths, I have not figured out, so only mutations
+        for path in self.population:
+            if flip_coin():
+                path.swap_points()
+            if flip_coin():
+                path.move_point()
+        self.filter_best_paths()
+
+    def do_one_step(self):
+        self.population_number += 1
+        self.grow_generation()
+        print(f"{self.population_number: <8}  ==  {self.path.length}")
+        if self.population_number >= self.population_number_max:
+            self.stop = True
+
+
 def main():
-    algorithm = SimulatedAnnealing(50)
+    algorithm = GeneticAlgorithm(100)
     tester = Tester(algorithm)
     tester.set_points()
     tester.run()
