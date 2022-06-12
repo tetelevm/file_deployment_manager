@@ -1,22 +1,33 @@
-from abc import abstractmethod
+def _import_tm_class():
+    module_path = Path(__file__).parent.parent.absolute() / "time_matrix_calculator.py"
+    spec = importlib.util.spec_from_file_location("tmcpy", module_path)
+    tmcpy = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tmcpy)
+    return tmcpy.TimeMatrix
+
+
+def _import_tm_list():
+    path_path = Path(__file__).parent.absolute() / "_default_time_matrix.py"
+    spec = importlib.util.spec_from_file_location("dtmpy", path_path)
+    dtmpy = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(dtmpy)
+    return dtmpy.time_matrix_list
+
 
 try:
-    from matrix_calculator import TimeMatrix
+    from time_matrix_calculator import TimeMatrix
+    from ._default_time_matrix import time_matrix_list
 except ModuleNotFoundError:
     # if run as "__main__"
     from pathlib import Path
     import importlib.util
-    matrix_path = Path(__file__).parent.parent.absolute() / "matrix_calculator.py"
-    spec = importlib.util.spec_from_file_location("matrix_calculator", matrix_path)
-    matrix_calculator = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(matrix_calculator)
-    TimeMatrix = matrix_calculator.TimeMatrix
+    TimeMatrix = _import_tm_class()
+    time_matrix_list = _import_tm_list()
 
 
 __all__ = [
     "BaseAlgorithm",
     "RESULT_MATRIX_TYPE",
-    "get_test_data",
     "abstract_main",
 ]
 
@@ -225,30 +236,17 @@ def get_test_data():
     algorithms.
     """
 
-    counts = {"files": 10,  "pc": 2, "ls": 3, "cs": 4, "sv": 2}
+    counts = {"files": 20,  "pc": 20, "ls": 15, "cs": 7, "sv": 10}
 
-    byte_on_mb = 2 ** 20
     file_sizes = [
-        54 * byte_on_mb, 117 * byte_on_mb, 86 * byte_on_mb, 89 * byte_on_mb,
-        78 * byte_on_mb, 23 * byte_on_mb, 48 * byte_on_mb, 20 * byte_on_mb,
-        72 * byte_on_mb, 10 * byte_on_mb
+        56623104, 122683392, 90177536, 93323264, 81788928, 24117248, 50331648,
+        20971520, 75497472, 10485760, 0, 94371840, 73400320, 62914560, 36700160,
+        110100480, 14680064, 51380224, 42991616, 115343360,
     ]
 
-    server_prices = [10, 100]
-    server_spaces = [400 * byte_on_mb, 600 * byte_on_mb]
+    server_prices = [40, 100, 50, 30, 70, 20, 60, 10, 90, 80]
+    server_spaces = [838860800] * 10  # 800 mb
 
-    time_matrix_list = [
-        [[0, 0], [5.5, 5.5]],
-        [[11.8, 11.8], [11.8, 4.45]],
-        [[8.7, 8.7], [8.7, 3.42]],
-        [[9.0, 9.0], [9.0, 3.52]],
-        [[7.9, 7.9], [7.9, 3.15]],
-        [[2.4, 2.4], [2.4, 1.32]],
-        [[4.9, 4.9], [4.9, 2.15]],
-        [[2.1, 2.1], [2.1, 1.22]],
-        [[7.3, 7.3], [7.3, 2.95]],
-        [[1.1, 1.1], [1.1, 0.88]],
-    ]
     time_matrix = TimeMatrix(time_matrix_list)
     coefficient = 1
 

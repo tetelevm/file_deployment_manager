@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pprint import pprint
 
 
 __all__ = [
@@ -365,61 +366,97 @@ class MatrixCalculator:
 
 def main():
     # the number of computer, local switch, cloud switch, server
-    counts = {"files": 10,  "pc": 2, "ls": 3, "cs": 4, "sv": 2}
+    counts = {"files": 20,  "pc": 20, "ls": 15, "cs": 7, "sv": 10}
 
     # the size of each file
     byte_on_mb = 2 ** 20
-    sizes = [
-        54 * byte_on_mb, 117 * byte_on_mb, 86 * byte_on_mb, 89 * byte_on_mb,
-        78 * byte_on_mb, 23 * byte_on_mb, 48 * byte_on_mb, 20 * byte_on_mb,
-        72 * byte_on_mb, 10 * byte_on_mb
+    file_sizes = [
+        54, 117, 86, 89, 78, 23, 48, 20, 72, 10, 0, 90, 70, 60, 35, 105, 14, 49,
+        41, 110
     ]
+    file_sizes = [size * byte_on_mb for size in file_sizes]
 
     # delays for switches (for computers and servers are hidden)
     delays = [
-        [50, 50, 50],  # local
-        [50, 50, 50, 500],  # cloud
+        [40, 50, 100, 50, 50, 50, 50, 350, 50, 50, 200, 50, 50, 20, 50],  # local
+        [50, 50, 50, 50, 50, 50, 50],  # cloud
     ]
 
     bit_on_mb = byte_on_mb * 8
-    pc_to_ls = [
-        [10 * bit_on_mb, 10 * bit_on_mb, 0 * bit_on_mb],  # 2 pk  ^v
-        [10 * bit_on_mb, 10 * bit_on_mb, 30 * bit_on_mb],
-        # 3 ls  <>
-    ]
-    ls_to_cs = [
-        [20 * bit_on_mb, 20 * bit_on_mb, 0,   0],  # 3 ls  ^v
-        [0,   20 * bit_on_mb, 20 * bit_on_mb, 0],
-        [0,   0,   10 * bit_on_mb, 30 * bit_on_mb],
-        # 4 cs  <>
-    ]
-    cs_to_sv = [
-        [30 * bit_on_mb, 0],  # 4 cs  ^v
-        [30 * bit_on_mb, 30 * bit_on_mb],
-        [30 * bit_on_mb, 0],
-        [0,   30 * bit_on_mb],
-        # 2 sv  <>
-    ]
 
-    calc = MatrixCalculator(counts, sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv)
+    pc_to_ls = [
+        # mb per second
+        [10, 10, 10, 10, 20, 10, 60,  0, 70, 10,  0, 10, 10, 10,  0],  # 20 pc  ^v
+        [70, 10, 10,  0, 20, 10, 10,  0, 10, 50, 10, 10, 10, 10, 10],
+        [10,  0, 30, 20, 20, 20, 60, 10, 10, 10, 30, 10, 20, 10, 10],
+        [10, 90, 10, 10, 20, 20, 10, 10,  0, 50, 10, 30, 20, 10, 10],
+        [70, 90, 30, 10, 20, 20, 60,  0,  0, 10, 10, 30, 30, 10, 10],
+        [10, 90, 10, 10, 20, 20, 30, 10,  0, 50, 30, 30, 30, 10, 10],
+        [10, 90, 10, 90, 20, 20, 10, 10,  0, 10, 10, 30, 40, 10, 10],
+        [10, 90,  0, 10, 20, 20, 60, 10,  0, 50, 30, 10, 40, 10, 10],
+        [10, 90, 10, 10, 20, 20, 10, 90,  0, 50, 50, 10, 50, 10, 50],
+        [70, 90, 10, 10, 20, 10, 10, 10,  0, 10, 10, 10, 50, 10, 10],
+        [10, 90, 10, 10, 20, 10, 10,  0, 10, 10, 10, 10, 60, 10, 10],
+        [10, 90, 10, 20, 20, 10, 60, 10, 10, 10, 10, 20, 60, 10, 10],
+        [10, 90, 10, 10, 20, 10, 30, 10, 10, 80, 10, 20, 70, 10, 10],
+        [10, 90, 10, 90, 10, 40, 10, 10, 10, 10,  0, 20, 70, 10, 10],
+        [70, 90, 10, 10, 10, 40, 10, 90, 10, 80,  0, 20, 80, 10,  0],
+        [10, 90,  0, 10, 10, 40, 60, 10, 70, 10,  0, 20, 80, 10, 10],
+        [10, 90, 10, 10, 40, 40, 10,  0, 10, 80, 10, 20, 90, 10, 10],
+        [10, 90, 30, 20, 40, 40, 30, 10, 10, 80, 10, 60, 90, 10, 10],
+        [10, 10, 10, 20, 10, 40, 60, 10, 70, 10, 30, 60,  0, 10, 10],
+        [70,  0, 30, 10, 10, 40, 10, 10, 70, 10, 30, 60,  0, 10, 10],
+        # 15 cs  <>
+    ]
+    pc_to_ls = [[ls * bit_on_mb for ls in pc] for pc in pc_to_ls]
+
+    ls_to_cs = [
+        # mb per second
+        [ 0, 30, 20, 20, 70, 10, 30],  # 15 ls  ^v
+        [ 0, 30, 20, 30, 20, 10, 30],
+        [ 0,  0, 60, 30, 70, 10, 30],
+        [40,  0,  0, 30, 70, 20, 30],
+        [20, 20,  0, 20, 70, 30, 30],
+        [20, 70,  0, 20, 20, 30, 20],
+        [80, 70, 60,  0, 20, 30, 20],
+        [20, 70, 20,  0, 40, 20, 20],
+        [40, 70, 20,  0,  0, 40, 40],
+        [80, 70, 30, 20,  0, 40, 40],
+        [20, 70, 20, 50, 20,  0, 40],
+        [50, 20, 30, 50, 40,  0, 40],
+        [80, 20, 20, 20, 40,  0,  0],
+        [50, 30, 20, 50, 40, 60,  0],
+        [80, 30, 30, 20, 20, 60,  0],
+        # 7 cs  <>
+    ]
+    ls_to_cs = [[cs * bit_on_mb for cs in ls] for ls in ls_to_cs]
+
+    cs_to_sv = [
+        # mb per second
+        [ 0, 60, 30, 30, 60, 30, 60, 30, 30, 60],  # 7 cs  ^v
+        [10,  0, 10, 30, 10, 30, 30, 10, 10, 30],
+        [50, 50,  0, 80, 30, 80, 30, 30, 80, 30],
+        [30, 40, 30,  0, 40, 40, 40, 20, 20,  0],
+        [20, 30, 30, 30,  0, 40, 20, 30,  0, 30],
+        [20, 20, 30, 80, 30,  0, 20,  0, 30, 20],
+        [50, 50, 50, 80, 40, 30,  0, 30, 30, 20],
+        # 10 sv  <>
+    ]
+    cs_to_sv = [[sv * bit_on_mb for sv in cs] for cs in cs_to_sv]
+
+    calc = MatrixCalculator(counts, file_sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv)
     matrix = calc.calculate()
 
-    table = "\n".join(
-        # file
-        " || ".join(
-            # server
-            "   ".join(
-                # computer
-                format(pc_time, ".2f").ljust(12)
-                for pc_time in server_times
-            )
-            for server_times in file_times
-        )
-        for file_times in matrix.matrix
-    )
-    print("< file on line >  < server between `||` >  < pc on cell >")
+    print("< file / server / pc >")
     print()
-    print(table)
+    matrix_to_print = [
+        [
+            [round(pc, 2) for pc in server]
+            for server in file
+        ]
+        for file in matrix.matrix
+    ]
+    pprint(matrix_to_print, width=150, compact=True)
 
 
 if __name__ == '__main__':

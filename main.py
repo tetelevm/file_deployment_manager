@@ -11,7 +11,7 @@ this algorithm:
 
 
 from data_manager import DataManager
-from matrix_calculator import MatrixCalculator
+from time_matrix_calculator import MatrixCalculator
 
 
 def main():

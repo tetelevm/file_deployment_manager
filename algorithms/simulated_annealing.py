@@ -1,9 +1,11 @@
 import random
+from math import log
+
 try:
-    from .algorithm_adapter import BaseAlgorithm, get_test_data
+    from .algorithm_adapter import BaseAlgorithm
 except ImportError:
     # if run as "__main__"
-    from algorithm_adapter import BaseAlgorithm, get_test_data, abstract_main
+    from algorithm_adapter import BaseAlgorithm, abstract_main
 
 
 __all__ = [
@@ -26,9 +28,9 @@ class SimulatedAnnealing(BaseAlgorithm):
         self.minimum_temperature = 1.0e-3
 
         # coefficient depends on the number of parameters
-        all_count = self.counts["files"] * self.counts["sv"] * self.counts["pc"]
+        all_count = self.counts["files"] * self.counts["sv"]
         # the function is poorly configured, you need to check on other parameters
-        self.cooling_coefficient = 1 - (1.1**all_count) * 1e-04
+        self.cooling_coefficient = 1 - 0.87 ** log(all_count, 1.2)
 
     def make_decision(self, new_value: float) -> bool:
         """
