@@ -25,6 +25,7 @@ def main():
     result = {}
     time_matrix = matrix_calculator.calculate()
     for algorithm_name in algorithms:
+        print(f"Running the algorithm <{algorithm_name}>")
         algorithm = DataManager.available_algorithms[algorithm_name]
         calculator = algorithm(counts, file_sizes, server_prices, server_spaces,
                                time_matrix, coefficient)

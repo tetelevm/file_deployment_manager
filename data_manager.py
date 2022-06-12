@@ -51,7 +51,10 @@ class DataManager:
         for algorithm_name in cls.available_algorithms:
             parser.add_argument("-" + algorithm_name, action=BooleanOptionalAction)
         parser = parser.parse_args()
-        return [name for (name, val) in parser.__dict__.items() if val]
+        alg_names = [name for (name, val) in parser.__dict__.items() if val]
+        if not alg_names:
+            raise ValueError("Enter the optimization algorithms")
+        return alg_names
 
     @classmethod
     def read_data(cls, path: str = None):
