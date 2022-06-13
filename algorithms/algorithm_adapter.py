@@ -108,30 +108,10 @@ class BaseAlgorithm():
         | ~free space~                                               |
         +------------------------------------------------------------+
 
-        A small bug in the calculation - since both file and server are
-        taken one by one, then a smaller later file may fit on one of
-        the earlier servers, but the calculation will give an error.
-        =====================================
-        => files -> 5mb, 5mb, 5mb, 5mb, 5mb, 2 mb
-        => servers -> 13mb, 10, 6mb
-
-        /            5mb          /          5mb            /      3mb      /
-        +-------------------------------------------------------------------+
-        |         < first >       /       < second ->       /   free space  |
-        +-------------------------------------------------------------------+
-        |         < third >       /       < fourth >        |           ^
-        +---------------------------------------------------+           |
-        |         < fifth >       /     |  < 1 free mb there            |
-        +-------------------------------+    but file weighs 2 mb       |
-                                  / < sixth >/                          |
-                                      in practice this file would fit here
-                                      but the script will raise an error
-
-        There may also be errors if the download is not available
-        between some computers and servers, as the first initiation (in
-        the current version) does not take them into account. For
-        example, if a file cannot be downloaded anywhere from the first
-        server, the file will be installed there anyway.
+        The method has a couple of hard-to-fix bugs that show up in
+        extreme cases (e.g., when space is low and it requires
+        non-sequential file locations, or when not all computers are
+        connected to all servers).
         """
 
         # [[X for each server] for each file]

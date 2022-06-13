@@ -52,7 +52,6 @@ class SimulatedAnnealing(BaseAlgorithm):
 
     def is_better_than_current(self) -> bool:
         """
-        A little additional function, just to avoid duplicating code.
         Checks if the matrix fits the conditions, and if it does, takes
         it as a new matrix with some probability.
         """

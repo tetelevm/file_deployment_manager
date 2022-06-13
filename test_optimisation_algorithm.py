@@ -216,7 +216,7 @@ class GeneticAlgorithm(AlgorithmAbstract):
         self.population = new_population
 
     def grow_generation(self):
-        # how you can cross paths, I have not figured out, so only mutations
+        # how to crossbreed paths, I have not figured out, so only mutations
         for path in self.population:
             if flip_coin():
                 path.swap_points()
