@@ -6,9 +6,11 @@ the correctness of the realization of algorithms.
 from __future__ import annotations
 import random
 from abc import ABC, abstractmethod
-from typing import Iterable
+from math import log
 from operator import attrgetter
 from tkinter import Tk, Canvas
+from typing import Iterable
+
 
 
 flip_coin = lambda: random.random() > 0.5
@@ -84,6 +86,11 @@ class Path:
         path.set_order(self.order_visits.copy())
         path.cache_len = self.cache_len
         return path
+
+    def __eq__(self, other: Path) -> bool:
+        start_ind = other.order_visits.index(self.order_visits[0])
+        other_order = other.order_visits[start_ind:] + other.order_visits[:start_ind]
+        return self.order_visits == other_order
 
     def swap_points(self):
         i, j = random.sample(range(self.point_number), k=2)
@@ -249,6 +256,113 @@ class GeneticAlgorithm(AlgorithmAbstract):
         self.log(self.population_number)
         if self.population_number >= self.population_number_max:
             self.stop = True
+
+
+class AntColony(AlgorithmAbstract):
+    line_pheromones: dict[tuple[int, int], float]
+
+    class Ant:
+        order: list[int]
+        not_visited: list[int]
+
+        def __init__(self, colony: AntColony):
+            self.colony = colony
+            self.path = self.colony.path.copy()
+            self.order = list(range(self.colony.point_number))
+
+        def choose_point(self) -> int:
+            from_point = self.order[-1]
+            weights = [
+                # self.colony.line_pheromones[(from_point, to_point)]
+                self.colony.get_weight(from_point, to_point)
+                for to_point in self.not_visited
+            ]
+            point_indexes = range(len(self.not_visited))
+            return random.choices(point_indexes, weights=weights, k=1)[0]
+
+        def hit_road(self) -> Path:
+            self.not_visited = self.order
+            self.order = []
+            self.order.append(self.not_visited.pop(-1))
+
+            while self.not_visited:
+                next_point_ind = self.choose_point()
+                self.order.append(self.not_visited.pop(next_point_ind))
+
+            self.path.set_order(self.order)
+            return self.path
+
+    # ====================
+
+    def __init__(self, point_number=100):
+        super().__init__(point_number)
+
+        self.scout_number = 0
+        self.scout_count = point_number * 4
+
+        self.ant_count = int(point_number ** 0.7) * 10
+        self.best_paths_count = int(log(point_number, 2)) + 1
+        self.threshold = 1e-03
+
+        self.line_pheromones = {
+            (fr, to): 1
+            for fr in range(point_number)
+            for to in range(fr + 1, point_number)
+        }
+        self.ants = [self.Ant(self) for _ in range(self.ant_count)]
+
+    def get_weight(self, fr, to) -> float:
+        return self.line_pheromones[(fr, to) if fr < to else (to, fr)]
+
+    def update_pheromones(self, paths: list[Path]):
+        if len(paths) > self.best_paths_count:
+            paths = paths[:self.best_paths_count]
+        if paths[0].length == paths[-1].length:
+            return
+
+        for key in self.line_pheromones.keys():
+            if self.line_pheromones[key] > self.threshold:
+                self.line_pheromones[key] *= 0.5
+            if self.line_pheromones[key] < self.threshold:
+                self.line_pheromones[key] = self.threshold
+
+        best_length = paths[0].length
+        deltas = [path.length - best_length for path in paths]
+        worst_delta = deltas[-1]
+        weights = [(1 - (delta / worst_delta)) ** 4 for delta in deltas]
+
+        for (path, weight) in zip(paths, weights):
+            for (fr, to) in path:
+                self.line_pheromones[(fr, to) if fr < to else (to, fr)] += weight
+
+    def filter_paths(self, paths: list[Path]) -> list[Path]:
+        unique_paths = []
+        for new_path in paths:
+            for current_path in unique_paths:
+                if new_path == current_path:
+                    break
+            else:
+                unique_paths.append(new_path)
+
+        sorted_paths = sorted(unique_paths, key=attrgetter("length"))
+        return sorted_paths
+
+    def scout_area(self):
+        paths = [ant.hit_road() for ant in self.ants]
+        sorted_paths = self.filter_paths(paths)
+
+        best_path = sorted_paths[0]
+        if self.path.length > best_path.length:
+            self.path = best_path.copy()
+
+        self.update_pheromones(sorted_paths)
+
+    def do_one_step(self):
+        self.scout_number += 1
+        self.scout_area()
+        self.log(self.scout_number)
+        # if self.scout_number > self.scout_count:
+        #     self.stop = True
 
 
 def main():
