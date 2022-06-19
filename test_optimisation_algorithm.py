@@ -29,6 +29,7 @@ class Point:
 class Path:
     def __init__(self, point_number: int, _fake=False):
         self.point_number = point_number
+        self._length = None
 
         if _fake:
             # for copying
@@ -39,31 +40,26 @@ class Path:
 
         # cache shared between all paths
         self.cache_len: dict[tuple[int, int], float] = dict()
-        for indexes in self:
-            self.update_line_length(indexes)
+        for i in self.order_visits:
+            for j in range(point_number):
+                self.update_line_length(i, j)
 
-    def update_line_length(self, indexes: tuple[int, int]):
-        if indexes[::-1] in self.cache_len:
-            return self.cache_len[indexes[::-1]]
-
-        first_point = self.points[indexes[0]]
-        second_point = self.points[indexes[1]]
+    def update_line_length(self, i: int, j: int):
+        first_point = self.points[i]
+        second_point = self.points[j]
 
         delta_x = first_point.x - second_point.x
         delta_y = first_point.y - second_point.y
         length = (delta_x**2 + delta_y**2) ** 0.5
 
-        self.cache_len[indexes] = length
-        self.cache_len[indexes[::-1]] = length
+        self.cache_len[(i, j)] = length
+        self.cache_len[(j, i)] = length
 
     @property
     def length(self) -> float:
-        length = 0
-        for indexes in self:
-            if indexes not in self.cache_len:
-                self.update_line_length(indexes)
-            length += self.cache_len[indexes]
-        return length
+        if self._length is None:
+            self._length = sum(self.cache_len[indexes] for indexes in self)
+        return self._length
 
     def __iter__(self) -> Iterable[tuple[int, int]]:
         for num in range(self.point_number):
@@ -78,10 +74,14 @@ class Path:
                 self.points[indexes[1]].y
             )
 
+    def set_order(self, order: list[int]):
+        self._length = None
+        self.order_visits = order
+
     def copy(self) -> Path:
         path = Path(self.point_number, True)
         path.points = self.points
-        path.order_visits = self.order_visits.copy()
+        path.set_order(self.order_visits.copy())
         path.cache_len = self.cache_len
         return path
 
@@ -89,10 +89,12 @@ class Path:
         i, j = random.sample(range(self.point_number), k=2)
         points = self.order_visits
         points[i], points[j] = points[j], points[i]
+        self.set_order(self.order_visits)
 
     def move_point(self):
         i, j = random.sample(range(self.point_number), k=2)
         self.order_visits.insert(j, self.order_visits.pop(i))
+        self.set_order(self.order_visits)
 
 
 class Tester:
@@ -238,6 +240,13 @@ def main():
     tester.set_points()
     tester.run()
     tester.root.mainloop()
+
+    # quite optimal results by the points count (depending on the position,
+    # the optimality varies in range of 10%):
+    #
+    # 100p  - 5000
+    #
+
 
 
 if __name__ == '__main__':
