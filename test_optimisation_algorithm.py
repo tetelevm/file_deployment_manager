@@ -150,8 +150,18 @@ class AlgorithmAbstract(ABC):
     """
 
     def __init__(self, point_number=100):
+        self.point_number = point_number
         self.path = Path(point_number)
         self.stop = False
+
+        self._debug_info = []
+
+    def log(self, iteration):
+        info = f"{iteration: <10}  ==  {self.path.length: <20}"
+        if self._debug_info:
+            info += " > " + " | ".join(str(arg) for arg in self._debug_info)
+            self._debug_info = []
+        print(info)
 
     @abstractmethod
     def do_one_step(self):
@@ -159,6 +169,9 @@ class AlgorithmAbstract(ABC):
 
 
 class SimulatedAnnealing(AlgorithmAbstract):
+    temperature: float
+    cooling_coefficient: float
+
     def __init__(self, point_number=100):
         super().__init__(point_number)
         self.temperature = 10.
@@ -185,18 +198,22 @@ class SimulatedAnnealing(AlgorithmAbstract):
 
     def do_one_step(self):
         self.make_change()
-        print(f"{format(self.temperature, '.9f'): <10}  ==  {self.path.length}")
+        self.log(format(self.temperature, '.9f'))
         self.temperature *= self.cooling_coefficient
-        if self.temperature < 1.0e-6:
+        if self.temperature < 1.0e-5:
             self.stop = True
 
 
 class GeneticAlgorithm(AlgorithmAbstract):
+    child_count: int
+    count_best: int
+    population: list[Path]
+
     def __init__(self, point_number=100):
         super().__init__(point_number)
 
         self.population_number = 0
-        self.population_number_max = (point_number / 10) ** 2.25 * 20
+        self.population_number_max = (point_number // 1.5) ** 2
         self.child_count = 10
         self.count_best = 10
         self.population_count = self.child_count * self.count_best
@@ -229,13 +246,13 @@ class GeneticAlgorithm(AlgorithmAbstract):
     def do_one_step(self):
         self.population_number += 1
         self.grow_generation()
-        print(f"{self.population_number: <8}  ==  {self.path.length}")
+        self.log(self.population_number)
         if self.population_number >= self.population_number_max:
             self.stop = True
 
 
 def main():
-    algorithm = GeneticAlgorithm(100)
+    algorithm = AntColony(300)
     tester = Tester(algorithm)
     tester.set_points()
     tester.run()
