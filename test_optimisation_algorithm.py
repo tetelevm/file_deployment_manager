@@ -166,7 +166,7 @@ class AlgorithmAbstract(ABC):
     def log(self, iteration):
         info = f"{iteration: <10}  ==  {self.path.length: <20}"
         if self._debug_info:
-            info += " > " + " | ".join(str(arg) for arg in self._debug_info)
+            info += " >| " + " | ".join(str(arg) for arg in self._debug_info)
             self._debug_info = []
         print(info)
 
@@ -181,33 +181,33 @@ class SimulatedAnnealing(AlgorithmAbstract):
 
     def __init__(self, point_number=100):
         super().__init__(point_number)
-        self.temperature = 10.
-        self.cooling_coefficient = 1 - (1e-01 / point_number**1.2)
+        self.temperature = 10
+        self.cooling_coefficient = 1 - (1e-01 / point_number)
 
     def make_decision(self, new_len: float) -> bool:
         if self.path.length > new_len:
             return True
-        if self.temperature > 0.001:
-            delta = (self.path.length - new_len) / self.path.length * 100
-            return random.random() < 2.71 ** (delta / self.temperature)
-        return False
+
+        delta = (self.path.length - new_len) / self.path.length * 100
+        return random.random() < 2.71 ** (delta / self.temperature)
 
     def make_change(self):
-        new_path = self.path.copy()
-        new_path.swap_points()
-        if self.make_decision(new_path.length):
-            self.path = new_path
+        for point in range(self.point_number):
+            new_path = self.path.copy()
+            new_path.swap_points()
+            if self.make_decision(new_path.length):
+                self.path = new_path
 
-        new_path = self.path.copy()
-        new_path.move_point()
-        if self.make_decision(new_path.length):
-            self.path = new_path
+            new_path = self.path.copy()
+            new_path.move_point()
+            if self.make_decision(new_path.length):
+                self.path = new_path
 
     def do_one_step(self):
         self.make_change()
         self.log(format(self.temperature, '.9f'))
         self.temperature *= self.cooling_coefficient
-        if self.temperature < 1.0e-5:
+        if self.temperature < 1.0e-3:
             self.stop = True
 
 
@@ -298,11 +298,11 @@ class AntColony(AlgorithmAbstract):
         super().__init__(point_number)
 
         self.scout_number = 0
-        self.scout_count = point_number * 4
+        self.scout_count = point_number * 5
 
-        self.ant_count = int(point_number ** 0.7) * 10
-        self.best_paths_count = int(log(point_number, 2)) + 1
-        self.threshold = 1e-03
+        self.ant_count = point_number * 3
+        self.evaporation_coefficient = min(0.7, 1/log(log(point_number**1.3)))
+        self.threshold = 1 / point_number ** 1.7
 
         self.line_pheromones = {
             (fr, to): 1
@@ -315,29 +315,28 @@ class AntColony(AlgorithmAbstract):
         return self.line_pheromones[(fr, to) if fr < to else (to, fr)]
 
     def update_pheromones(self, paths: list[Path]):
-        if len(paths) > self.best_paths_count:
-            paths = paths[:self.best_paths_count]
-        if paths[0].length == paths[-1].length:
-            return
-
         for key in self.line_pheromones.keys():
             if self.line_pheromones[key] > self.threshold:
-                self.line_pheromones[key] *= 0.5
+                self.line_pheromones[key] *= self.evaporation_coefficient
             if self.line_pheromones[key] < self.threshold:
                 self.line_pheromones[key] = self.threshold
 
-        best_length = paths[0].length
+        best_length = self.path.length
         deltas = [path.length - best_length for path in paths]
         worst_delta = deltas[-1]
-        weights = [(1 - (delta / worst_delta)) ** 4 for delta in deltas]
+        weights = [(1 - (delta / worst_delta)) ** 2 for delta in deltas]
+        paths.insert(0, self.path)
+        weights.insert(0, 1)
 
         for (path, weight) in zip(paths, weights):
             for (fr, to) in path:
                 self.line_pheromones[(fr, to) if fr < to else (to, fr)] += weight
 
     def filter_paths(self, paths: list[Path]) -> list[Path]:
-        unique_paths = []
+        unique_paths = [self.path]
         for new_path in paths:
+            if new_path.length >= self.path.length:
+                continue
             for current_path in unique_paths:
                 if new_path == current_path:
                     break
@@ -351,22 +350,20 @@ class AntColony(AlgorithmAbstract):
         paths = [ant.hit_road() for ant in self.ants]
         sorted_paths = self.filter_paths(paths)
 
-        best_path = sorted_paths[0]
-        if self.path.length > best_path.length:
-            self.path = best_path.copy()
-
-        self.update_pheromones(sorted_paths)
+        if len(sorted_paths) > 1:
+            self.path = sorted_paths.pop(0).copy()
+            self.update_pheromones(sorted_paths)
 
     def do_one_step(self):
         self.scout_number += 1
         self.scout_area()
         self.log(self.scout_number)
-        # if self.scout_number > self.scout_count:
-        #     self.stop = True
+        if self.scout_number > self.scout_count:
+            self.stop = True
 
 
 def main():
-    algorithm = AntColony(300)
+    algorithm = AntColony(100)
     tester = Tester(algorithm)
     tester.set_points()
     tester.run()
@@ -375,8 +372,12 @@ def main():
     # quite optimal results by the points count (depending on the position,
     # the optimality varies in range of 10%):
     #
-    # 100p  - 5000
-    #
+    # 20 - 1600-2000
+    # 30 - 2200-2500
+    # 50 - 3000
+    # 70 - 3500
+    # 100  - 5000
+    # 300 -
 
 
 
