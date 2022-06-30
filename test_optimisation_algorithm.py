@@ -273,7 +273,6 @@ class AntColony(AlgorithmAbstract):
         def choose_point(self) -> int:
             from_point = self.order[-1]
             weights = [
-                # self.colony.line_pheromones[(from_point, to_point)]
                 self.colony.get_weight(from_point, to_point)
                 for to_point in self.not_visited
             ]

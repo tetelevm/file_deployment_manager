@@ -1,3 +1,6 @@
+from __future__ import annotations
+from copy import deepcopy
+
 def _import_tm_class():
     module_path = Path(__file__).parent.parent.absolute() / "time_matrix_calculator.py"
     spec = importlib.util.spec_from_file_location("tmcpy", module_path)
@@ -27,12 +30,44 @@ except ModuleNotFoundError:
 
 __all__ = [
     "BaseAlgorithm",
-    "RESULT_MATRIX_TYPE",
+    "DeploymentMatrix",
     "abstract_main",
 ]
 
 
-RESULT_MATRIX_TYPE = list[list[int]]
+class DeploymentMatrix:
+    """
+    The class that stores the file placement matrix on the servers.
+    """
+
+    def __init__(self, matrix: list[list[int]]):
+        self.matrix = matrix
+        self.value = None
+
+    def __getitem__(self, index: tuple[int, int]) -> int:
+        file, server = index
+        return self.matrix[file][server]
+
+    def __setitem__(self, index: tuple[int, int], value: int):
+        if self.value is not None:
+            self.value = None
+        file, server = index
+        self.matrix[file][server] = value
+
+    def copy(self) -> DeploymentMatrix:
+        """
+        Copies itself and returns a new matrix object.
+        """
+        new_matrix = DeploymentMatrix(deepcopy(self.matrix))
+        new_matrix.value = self.value
+        return new_matrix
+
+    @classmethod
+    def null(cls, f_size, sv_size) -> DeploymentMatrix:
+        """
+        Creates an empty matrix of size FxSV.
+        """
+        return cls([[0] * sv_size for _ in range(f_size)])
 
 
 class BaseAlgorithm():
@@ -47,6 +82,11 @@ class BaseAlgorithm():
     The public call points of the class are the `.calculate()` method
     and the `.matrix` attribute obtained after the calculation.
     """
+
+    counts: dict[str, int]
+    matrix: DeploymentMatrix
+    stop: bool
+    best_value: float
 
     def __init__(
             self,
@@ -80,7 +120,7 @@ class BaseAlgorithm():
         self.best_value = self.get_deployment_result(self.matrix)
         self.print_logs = print_logs
 
-    def create_initial_matrix(self) -> list[list[int]]:
+    def create_initial_matrix(self) -> DeploymentMatrix:
         """
         Creates an initial distribution matrix. This matrix is a list
         of lists of `file X server` size ints.
@@ -115,10 +155,7 @@ class BaseAlgorithm():
         """
 
         # [[X for each server] for each file]
-        matrix = [
-            [0] * self.counts["sv"]
-            for _ in range(self.counts["files"])
-        ]
+        matrix = DeploymentMatrix.null(self.counts["files"], self.counts["sv"])
 
         server_ind = 0
         server_space = self.server_spaces[server_ind]
@@ -132,12 +169,12 @@ class BaseAlgorithm():
                     raise ValueError("Space on servers is less than the files size")
                 server_space = self.server_spaces[server_ind]
 
-            matrix[file_ind][server_ind] = 1
+            matrix[file_ind, server_ind] = 1
             server_space -= file_weight
 
         return matrix
 
-    def get_deployment_result(self, deployment_matrix: RESULT_MATRIX_TYPE) -> float:
+    def get_deployment_result(self, deployment_matrix: DeploymentMatrix) -> float:
         """
         Calculates the cost of placing the files, and then calculates
         the delivery time of all files to all computers and translates
@@ -145,24 +182,24 @@ class BaseAlgorithm():
         costs.
         """
 
-        deployment_price = sum(
-            self.prices[file_i][server_i]
-            for server_i in range(self.counts["sv"])
-            for file_i in range(self.counts["files"])
-            if deployment_matrix[file_i][server_i]
-        )
+        if deployment_matrix.value is None:
+            deployment_price = sum(
+                self.prices[file_i][server_i]
+                for server_i in range(self.counts["sv"])
+                for file_i in range(self.counts["files"])
+                if deployment_matrix[file_i, server_i]
+            )
+            total_delivery_time = 0
+            for file_i in range(self.counts["files"]):
+                for server_i in range(self.counts["sv"]):
+                    if not deployment_matrix[file_i, server_i]:
+                        continue
+                    for pc_i in range(self.counts["pc"]):
+                        total_delivery_time += self.time_matrix[file_i, server_i, pc_i]
+            deployment_matrix.value = deployment_price + self.coefficient * total_delivery_time
+        return deployment_matrix.value
 
-        total_delivery_time = 0
-        for file_i in range(self.counts["files"]):
-            for server_i in range(self.counts["sv"]):
-                if not deployment_matrix[file_i][server_i]:
-                    continue
-                for pc_i in range(self.counts["pc"]):
-                    total_delivery_time += self.time_matrix[file_i, server_i, pc_i]
-
-        return deployment_price + self.coefficient * total_delivery_time
-
-    def check_prerequisite(self, deployment_matrix: RESULT_MATRIX_TYPE) -> bool:
+    def check_prerequisite(self, deployment_matrix: DeploymentMatrix) -> bool:
         """
         Checks that the prerequisites are met, more precisely:
             - it is possible to get any file from any computer
@@ -174,7 +211,7 @@ class BaseAlgorithm():
                 possible_places = sum(
                     self.time_matrix[file_i, server_i, pc_i]
                     for server_i in range(self.counts["sv"])
-                    if deployment_matrix[file_i][server_i]
+                    if deployment_matrix[file_i, server_i]
                 )
                 if not possible_places:
                     return False
@@ -183,7 +220,7 @@ class BaseAlgorithm():
             required_space = sum(
                 self.file_sizes[file_i]
                 for file_i in range(self.counts["files"])
-                if deployment_matrix[file_i][server_i]
+                if deployment_matrix[file_i, server_i]
             )
             if required_space > self.server_spaces[server_i]:
                 return False

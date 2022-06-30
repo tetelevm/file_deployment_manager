@@ -71,9 +71,9 @@ class SimulatedAnnealing(BaseAlgorithm):
         A function that changes the existence of a file (if it doesn't
         fit, it changes back).
         """
-        self.matrix[f_ind][s_ind] ^= 1
+        self.matrix[f_ind, s_ind] ^= 1
         if not self.is_better_than_current():
-            self.matrix[f_ind][s_ind] ^= 1
+            self.matrix[f_ind, s_ind] ^= 1
 
     def swap_existence(self, f1: int, s1: int, f2: int, s2: int):
         """
@@ -81,9 +81,9 @@ class SimulatedAnnealing(BaseAlgorithm):
         fit, it swaps back).
         """
         m = self.matrix  # for short record
-        m[f1][s1], m[f2][s2] = m[f2][s2], m[f1][s1]
+        m[f1, s1], m[f2, s2] = m[f2, s2], m[f1, s1]
         if not self.is_better_than_current():
-            m[f1][s1], m[f2][s2] = m[f2][s2], m[f1][s1]
+            m[f1, s1], m[f2, s2] = m[f2, s2], m[f1, s1]
 
     def make_change(self):
         """

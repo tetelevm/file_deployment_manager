@@ -1,19 +1,18 @@
 import random
 from math import log
-from copy import deepcopy
 
 try:
-    from .algorithm_adapter import BaseAlgorithm, RESULT_MATRIX_TYPE
+    from .algorithm_adapter import BaseAlgorithm, DeploymentMatrix
 except ImportError:
     # if run as "__main__"
-    from algorithm_adapter import BaseAlgorithm, RESULT_MATRIX_TYPE, abstract_main
+    from algorithm_adapter import BaseAlgorithm, DeploymentMatrix, abstract_main
 
 __all__ = [
     "GeneticAlgorithm",
 ]
 
 flip_coin = lambda: random.random() > 0.5
-POPULATION_TYPE = list[RESULT_MATRIX_TYPE]
+POPULATION_TYPE = list[DeploymentMatrix]
 
 
 class GeneticAlgorithm(BaseAlgorithm):
@@ -37,31 +36,31 @@ class GeneticAlgorithm(BaseAlgorithm):
         self.population = self.create_descendants(self.matrix, self.count_best)
 
     @staticmethod
-    def create_descendants(parent_matrix: RESULT_MATRIX_TYPE, count: int) -> POPULATION_TYPE:
+    def create_descendants(parent_matrix: DeploymentMatrix, count: int) -> POPULATION_TYPE:
         """
         Copies the matrix the specified count of times.
         """
-        return [deepcopy(parent_matrix) for _ in range(count)]
+        return [parent_matrix.copy() for _ in range(count)]
 
-    def change_existence(self, matrix: RESULT_MATRIX_TYPE):
+    def change_existence(self, matrix: DeploymentMatrix):
         """
         Randomly changes the location of one file on one server.
         """
 
         f_ind = random.randrange(self.counts["files"])
         s_ind = random.randrange(self.counts["sv"])
-        matrix[f_ind][s_ind] ^= 1
+        matrix[f_ind, s_ind] ^= 1
 
-    def swap_existence(self, matrix: RESULT_MATRIX_TYPE):
+    def swap_existence(self, matrix: DeploymentMatrix):
         """
         Randomly moves one file to another server.
         """
 
         f = random.randrange(self.counts["files"])
         s_1, s_2 = random.sample(range(self.counts["sv"]), k=2)
-        matrix[f][s_1], matrix[f][s_2] = matrix[f][s_2], matrix[f][s_1]
+        matrix[f, s_1], matrix[f, s_2] = matrix[f, s_2], matrix[f, s_1]
 
-    def mutate_population(self, population) -> POPULATION_TYPE:
+    def mutate_population(self, population: POPULATION_TYPE) -> POPULATION_TYPE:
         """
         Mutates everyone within the population and chooses the best
         among the resulting ones.
@@ -87,9 +86,9 @@ class GeneticAlgorithm(BaseAlgorithm):
 
     def crossbreed_matrix(
             self,
-            matrix_1: RESULT_MATRIX_TYPE,
-            matrix_2: RESULT_MATRIX_TYPE,
-    ) -> RESULT_MATRIX_TYPE:
+            matrix_1: DeploymentMatrix,
+            matrix_2: DeploymentMatrix,
+    ) -> DeploymentMatrix:
         """
         It interbreed the two parents.
         In those cells where the parents have different values, a cell
@@ -97,12 +96,12 @@ class GeneticAlgorithm(BaseAlgorithm):
         If the descendant is unviable, one of the parents returns.
         """
 
-        child = deepcopy(matrix_1)
+        child = matrix_1.copy()
         for f_ind in range(self.counts["files"]):
             for sv_ind in range(self.counts["sv"]):
-                if matrix_1[f_ind][sv_ind] != matrix_2[f_ind][sv_ind]:
-                    if flip_coin:
-                        child[f_ind][sv_ind] = matrix_2[f_ind][sv_ind]
+                if matrix_1[f_ind, sv_ind] != matrix_2[f_ind, sv_ind]:
+                    if flip_coin():
+                        child[f_ind, sv_ind] = matrix_2[f_ind, sv_ind]
 
         if self.check_prerequisite(child):
             return child
@@ -141,14 +140,13 @@ class GeneticAlgorithm(BaseAlgorithm):
         best_from_generation = sorted(new_generation, key=self.get_deployment_result)
         best_from_generation = best_from_generation[:self.count_best]
 
-        self.matrix = best_from_generation[0]
+        self.matrix = best_from_generation[0].copy()
         self.best_value = self.get_deployment_result(self.matrix)
 
         hybrids = self.crossbreed_population(best_from_generation)
-        self.population = hybrids
+        self.population = hybrids + [self.matrix]
 
-        # quite a long calculation
-        self.matrix = min(self.population + [self.matrix], key=self.get_deployment_result)
+        self.matrix = min(self.population, key=self.get_deployment_result).copy()
         self.best_value = self.get_deployment_result(self.matrix)
 
     def do_one_step(self):
