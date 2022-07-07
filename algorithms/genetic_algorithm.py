@@ -162,5 +162,5 @@ class GeneticAlgorithm(BaseAlgorithm):
             self.stop = True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     abstract_main(GeneticAlgorithm)

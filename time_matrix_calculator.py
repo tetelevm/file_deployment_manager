@@ -459,5 +459,5 @@ def main():
     pprint(matrix_to_print, width=150, compact=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

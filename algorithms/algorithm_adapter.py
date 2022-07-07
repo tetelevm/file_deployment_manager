@@ -287,5 +287,5 @@ def abstract_main(algorithm):
     print(f"{first_result} => {second_result}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     abstract_main(BaseAlgorithm)
