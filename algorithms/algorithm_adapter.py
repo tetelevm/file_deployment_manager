@@ -42,6 +42,8 @@ class DeploymentMatrix:
 
     def __init__(self, matrix: list[list[int]]):
         self.matrix = matrix
+        self.f_count = len(matrix)
+        self.sv_count = len(matrix[0])
         self.value = None
 
     def __getitem__(self, index: tuple[int, int]) -> int:
@@ -117,7 +119,7 @@ class BaseAlgorithm():
         self.matrix = self.create_initial_matrix()
 
         self.stop = False
-        self.best_value = self.get_deployment_result(self.matrix)
+        self.best_value = self.get_deployment_result()
         self.print_logs = print_logs
 
     def create_initial_matrix(self) -> DeploymentMatrix:
@@ -159,13 +161,13 @@ class BaseAlgorithm():
 
         server_ind = 0
         server_space = self.server_spaces[server_ind]
-        for file_ind in range(self.counts["files"]):
+        for file_ind in range(matrix.f_count):
             file_weight = self.file_sizes[file_ind]
 
             while server_space < file_weight:
                 # get first server with free space more than the file weight
                 server_ind += 1
-                if server_ind >= self.counts["sv"]:
+                if server_ind >= matrix.sv_count:
                     raise ValueError("Space on servers is less than the files size")
                 server_space = self.server_spaces[server_ind]
 
@@ -174,7 +176,7 @@ class BaseAlgorithm():
 
         return matrix
 
-    def get_deployment_result(self, deployment_matrix: DeploymentMatrix) -> float:
+    def get_deployment_result(self, deployment_matrix: DeploymentMatrix = None) -> float:
         """
         Calculates the cost of placing the files, and then calculates
         the delivery time of all files to all computers and translates
@@ -182,16 +184,19 @@ class BaseAlgorithm():
         costs.
         """
 
+        if deployment_matrix is None:
+            deployment_matrix = self.matrix
+
         if deployment_matrix.value is None:
             deployment_price = sum(
                 self.prices[file_i][server_i]
-                for server_i in range(self.counts["sv"])
-                for file_i in range(self.counts["files"])
+                for server_i in range(deployment_matrix.sv_count)
+                for file_i in range(deployment_matrix.f_count)
                 if deployment_matrix[file_i, server_i]
             )
             total_delivery_time = 0
-            for file_i in range(self.counts["files"]):
-                for server_i in range(self.counts["sv"]):
+            for file_i in range(deployment_matrix.f_count):
+                for server_i in range(deployment_matrix.sv_count):
                     if not deployment_matrix[file_i, server_i]:
                         continue
                     for pc_i in range(self.counts["pc"]):
@@ -207,19 +212,19 @@ class BaseAlgorithm():
         """
 
         for pc_i in range(self.counts["pc"]):
-            for file_i in range(self.counts["files"]):
+            for file_i in range(deployment_matrix.f_count):
                 possible_places = sum(
                     self.time_matrix[file_i, server_i, pc_i]
-                    for server_i in range(self.counts["sv"])
+                    for server_i in range(deployment_matrix.sv_count)
                     if deployment_matrix[file_i, server_i]
                 )
                 if not possible_places:
                     return False
 
-        for server_i in range(self.counts["sv"]):
+        for server_i in range(deployment_matrix.sv_count):
             required_space = sum(
                 self.file_sizes[file_i]
-                for file_i in range(self.counts["files"])
+                for file_i in range(deployment_matrix.f_count)
                 if deployment_matrix[file_i, server_i]
             )
             if required_space > self.server_spaces[server_i]:

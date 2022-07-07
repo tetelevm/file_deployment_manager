@@ -28,7 +28,7 @@ class SimulatedAnnealing(BaseAlgorithm):
         self.minimum_temperature = 1.0e-3
 
         # coefficient depends on the number of parameters
-        all_count = self.counts["files"] * self.counts["sv"]
+        all_count = self.matrix.f_count * self.matrix.sv_count
         # the function is poorly configured, you need to check on other parameters
         self.cooling_coefficient = 1 - 0.87 ** log(all_count, 1.2)
 
@@ -59,7 +59,7 @@ class SimulatedAnnealing(BaseAlgorithm):
         if not self.check_prerequisite(self.matrix):
             return False
 
-        new_value = self.get_deployment_result(self.matrix)
+        new_value = self.get_deployment_result()
         is_to_set = self.make_decision(new_value)
         if is_to_set:
             self.best_value = new_value
@@ -93,21 +93,18 @@ class SimulatedAnnealing(BaseAlgorithm):
         the existence of two random files.
         """
 
-        server_count = self.counts["sv"]
-        file_count = self.counts["files"]
-
-        for file_ind in range(file_count):
-            server_ind = random.randrange(server_count)
+        for file_ind in range(self.matrix.f_count):
+            server_ind = random.randrange(self.matrix.sv_count)
             self.change_existence(file_ind, server_ind)
-        for server_ind in range(server_count):
-            file_ind = random.randrange(file_count)
+        for server_ind in range(self.matrix.sv_count):
+            file_ind = random.randrange(self.matrix.f_count)
             self.change_existence(file_ind, server_ind)
 
-        for file_ind in range(file_count):
-            server_ind_1, server_ind_2 = random.sample(range(server_count), k=2)
+        for file_ind in range(self.matrix.f_count):
+            server_ind_1, server_ind_2 = random.sample(range(self.matrix.sv_count), k=2)
             self.swap_existence(file_ind, server_ind_1, file_ind, server_ind_2)
-        for server_ind in range(server_count):
-            file_ind_1, file_ind_2 = random.sample(range(file_count), k=2)
+        for server_ind in range(self.matrix.sv_count):
+            file_ind_1, file_ind_2 = random.sample(range(self.matrix.f_count), k=2)
             self.swap_existence(file_ind_1, server_ind, file_ind_2, server_ind)
 
     def do_one_step(self):
