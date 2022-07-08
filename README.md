@@ -1,4 +1,4 @@
-# file_manager_on_local_network
+# file_deployment_manager
 
 The project solves a problem of the best distribution of files on the servers
 in terms of cost/speed of access on the computer network.
