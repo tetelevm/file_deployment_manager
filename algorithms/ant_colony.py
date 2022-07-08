@@ -170,7 +170,9 @@ class AntColony(BaseAlgorithm):
 
         self.scout_number += 1
         self.explore_variants()
-        print(f"{self.scout_number: <8}  ==  {self.best_value}")
+
+        if self.print_logs:
+            print(f"{self.scout_number: <8}  ==  {self.best_value}")
         if self.scout_number > self.scout_count:
             self.stop = True
 

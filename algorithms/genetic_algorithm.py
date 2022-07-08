@@ -157,7 +157,9 @@ class GeneticAlgorithm(BaseAlgorithm):
 
         self.population_number += 1
         self.grow_generation()
-        print(f"{self.population_number: <8}  ==  {self.best_value}")
+
+        if self.print_logs:
+            print(f"{self.population_number: <8}  ==  {self.best_value}")
         if self.population_number >= self.population_number_max:
             self.stop = True
 

@@ -30,7 +30,7 @@ def main():
         calculator = algorithm(counts, file_sizes, server_prices, server_spaces,
                                time_matrix, coefficient)
         matrix = calculator.calculate()
-        result[algorithm_name] = matrix
+        result[algorithm_name] = matrix.matrix
     DataManager.write_result(result)
 
 

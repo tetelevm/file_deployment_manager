@@ -370,11 +370,11 @@ def main():
 
     # the size of each file
     byte_on_mb = 2 ** 20
-    file_sizes = [
+    _file_sizes = [
         54, 117, 86, 89, 78, 23, 48, 20, 72, 10, 0, 90, 70, 60, 35, 105, 14, 49,
         41, 110
     ]
-    file_sizes = [size * byte_on_mb for size in file_sizes]
+    file_sizes = [size * byte_on_mb for size in _file_sizes]
 
     # delays for switches (for computers and servers are hidden)
     delays = [
@@ -384,7 +384,7 @@ def main():
 
     bit_on_mb = byte_on_mb * 8
 
-    pc_to_ls = [
+    _pc_to_ls = [
         # mb per second
         [10, 10, 10, 10, 20, 10, 60,  0, 70, 10,  0, 10, 10, 10,  0],  # 20 pc  ^v
         [70, 10, 10,  0, 20, 10, 10,  0, 10, 50, 10, 10, 10, 10, 10],
@@ -408,9 +408,9 @@ def main():
         [70,  0, 30, 10, 10, 40, 10, 10, 70, 10, 30, 60,  0, 10, 10],
         # 15 cs  <>
     ]
-    pc_to_ls = [[ls * bit_on_mb for ls in pc] for pc in pc_to_ls]
+    pc_to_ls = [[ls * bit_on_mb for ls in pc] for pc in _pc_to_ls]
 
-    ls_to_cs = [
+    _ls_to_cs = [
         # mb per second
         [ 0, 30, 20, 20, 70, 10, 30],  # 15 ls  ^v
         [ 0, 30, 20, 30, 20, 10, 30],
@@ -429,9 +429,9 @@ def main():
         [80, 30, 30, 20, 20, 60,  0],
         # 7 cs  <>
     ]
-    ls_to_cs = [[cs * bit_on_mb for cs in ls] for ls in ls_to_cs]
+    ls_to_cs = [[cs * bit_on_mb for cs in ls] for ls in _ls_to_cs]
 
-    cs_to_sv = [
+    _cs_to_sv = [
         # mb per second
         [ 0, 60, 30, 30, 60, 30, 60, 30, 30, 60],  # 7 cs  ^v
         [10,  0, 10, 30, 10, 30, 30, 10, 10, 30],
@@ -442,7 +442,7 @@ def main():
         [50, 50, 50, 80, 40, 30,  0, 30, 30, 20],
         # 10 sv  <>
     ]
-    cs_to_sv = [[sv * bit_on_mb for sv in cs] for cs in cs_to_sv]
+    cs_to_sv = [[sv * bit_on_mb for sv in cs] for cs in _cs_to_sv]
 
     calc = MatrixCalculator(counts, file_sizes, delays, pc_to_ls, ls_to_cs, cs_to_sv)
     matrix = calc.calculate()
