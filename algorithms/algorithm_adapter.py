@@ -46,6 +46,9 @@ class DeploymentMatrix:
         self.sv_count = len(matrix[0])
         self.value = None
 
+    def __eq__(self, other: DeploymentMatrix):
+        return self.matrix == other.matrix
+
     def __getitem__(self, index: tuple[int, int]) -> int:
         file, server = index
         return self.matrix[file][server]
@@ -283,7 +286,7 @@ def abstract_main(algorithm):
     alg.calculate()
     second_result = alg.best_value
 
-    print(alg.matrix)
+    print(alg.matrix.matrix)
     print(f"{first_result} => {second_result}")
 
 
