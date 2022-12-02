@@ -10,10 +10,10 @@ from dataclasses import dataclass
 from math import log
 from operator import attrgetter
 from tkinter import Tk, Canvas
-from typing import Iterable, Protocol, TypeVar
+from typing import Iterable, Protocol, TypeVar, Any
 
 
-# ======================================================================
+# === funcs ============================================================
 
 
 def flip_coin() -> bool:
@@ -33,7 +33,7 @@ class _Sortable_P(Protocol):
 SortableT = TypeVar("SortableT", bound=_Sortable_V | _Sortable_P)
 
 
-# travelling salesman problem and drawing of the result ================
+# === travelling salesman problem and drawing of the result ============
 
 
 class Point:
@@ -171,10 +171,10 @@ class Tester:
         else:
             self.root.title("Test Algorithm (stop)")
             self.root.update()
-            print("stop")
+            print(f"result: {self.algorithm.path.length: <20}")
 
 
-# algorithm ============================================================
+# === algorithms =======================================================
 
 
 class AlgorithmAbstract(ABC):
@@ -187,17 +187,21 @@ class AlgorithmAbstract(ABC):
     path: Path
     stop: bool
 
-    def __init__(self, point_number=100):
+    def __init__(self, point_number=100, params: dict[str, Any] = None):
         self.point_number = point_number
         self.path = Path(point_number)
         self.stop = False
 
         self.counter = 0
         self._debug_info = []
+        self.log = self._log
 
-        self.log(_counter="start")
+        if params is None:
+            params = self.get_default_params()
+        self.init_from_params_dct(params)
+        self.post_init_params()
 
-    def log(self, *args, _counter: str = None):
+    def _log(self, *args, _counter: str = None):
         counter = _counter or self.counter
         info = [f"{counter: <6}", f"{self.path.length: <20}"]
 
@@ -212,22 +216,59 @@ class AlgorithmAbstract(ABC):
 
         self.counter += 1
 
+    def _no_log(self, *args, **kwargs):
+        self._debug_info = []
+        self.counter += 1
+
+    def disable_log(self):
+        self.log = self._no_log
+
     @staticmethod
     def sort_paths(paths: list[SortableT]) -> list[SortableT]:
         return sorted(paths, key=attrgetter("length"))
 
+    def init_from_params_dct(self, params: dict[str, Any]):
+        for (field, value) in params.items():
+            if callable(value):
+                setattr(self, field, value(self))
+            else:
+                setattr(self, field, value)
+
     @abstractmethod
-    def do_one_step(self):
+    def get_default_params(self) -> dict[str, Any]:
         pass
+
+    @abstractmethod
+    def post_init_params(self):
+        pass
+
+    @abstractmethod
+    def stop_condition(self) -> bool:
+        pass
+
+    @abstractmethod
+    def algorithm_cycle(self) -> tuple | None:
+        pass
+
+    def do_one_step(self):
+        args = self.algorithm_cycle() or []
+        self.log(*args)
+        if self.stop_condition():
+            self.stop = True
 
 
 class SimulatedAnnealing(AlgorithmAbstract):
     temperature: float
+    cooling_coefficient: float
 
-    def __init__(self, point_number=100):
-        super().__init__(point_number)
-        self.temperature = 10
-        self.cooling_coefficient = 1 - (1e-01 / point_number)
+    def get_default_params(self):
+        return {
+            "temperature": 10,
+            "cooling_coefficient": 1 - (1e-01 / self.point_number),
+        }
+
+    def post_init_params(self):
+        pass
 
     def make_decision(self, new_len: float) -> bool:
         if self.path.length > new_len:
@@ -236,7 +277,7 @@ class SimulatedAnnealing(AlgorithmAbstract):
         delta = (self.path.length - new_len) / self.path.length * 100
         return random.random() < 2.71 ** (delta / self.temperature)
 
-    def make_change(self):
+    def algorithm_cycle(self):
         for point in range(self.point_number):
             for modify_func in Path.modify_funcs:
                 new_path = self.path.copy()
@@ -244,25 +285,30 @@ class SimulatedAnnealing(AlgorithmAbstract):
                 if self.make_decision(new_path.length):
                     self.path = new_path
 
-    def do_one_step(self):
-        self.make_change()
-        self.log(format(self.temperature, '.9f'))
         self.temperature *= self.cooling_coefficient
-        if self.temperature < 1.0e-3:
-            self.stop = True
+        return (format(self.temperature, '.9f'),)
+
+    def stop_condition(self):
+        return self.temperature < 1.0e-3
 
 
 class GeneticAlgorithm(AlgorithmAbstract):
+    population_number_max: float
+    child_count: int
+    count_best: int
+    population_count: int
+
     population: list[Path]
 
-    def __init__(self, point_number=100):
-        super().__init__(point_number)
+    def get_default_params(self):
+        return {
+            "population_number_max": (self.point_number // 1.5) ** 2,
+            "child_count": 10,
+            "count_best": 10,
+            "population_count": lambda s: s.child_count * s.count_best,
+        }
 
-        self.population_number_max = (point_number // 1.5) ** 2
-        self.child_count = 10
-        self.count_best = 10
-        self.population_count = self.child_count * self.count_best
-
+    def post_init_params(self):
         self.population = self.create_descendants(self.path, self.population_count)
         for path in self.population:
             path.shuffle()
@@ -282,7 +328,7 @@ class GeneticAlgorithm(AlgorithmAbstract):
             new_population.extend(child)
         self.population = new_population
 
-    def grow_generation(self):
+    def algorithm_cycle(self):
         # how to crossbreed paths, I have not figured out, so only mutations
         for path in self.population:
             for modify_func in Path.modify_funcs:
@@ -290,11 +336,8 @@ class GeneticAlgorithm(AlgorithmAbstract):
                     modify_func(path)
         self.filter_best_paths()
 
-    def do_one_step(self):
-        self.grow_generation()
-        self.log()
-        if self.counter >= self.population_number_max:
-            self.stop = True
+    def stop_condition(self):
+        return self.counter >= self.population_number_max
 
 
 class AntColony(AlgorithmAbstract):
@@ -331,22 +374,27 @@ class AntColony(AlgorithmAbstract):
 
     # ====================
 
+    scout_count: int
+    ant_count: int
+    evaporation_coefficient: float
+    threshold: float
+
     line_pheromones: dict[tuple[int, int], float]
     ants: list[Ant]
 
-    def __init__(self, point_number=100):
-        super().__init__(point_number)
+    def get_default_params(self):
+        return {
+            "scout_count": self.point_number * 5,
+            "ant_count": self.point_number * 3,
+            "evaporation_coefficient": min(0.7, 1/log(log(self.point_number**1.3))),
+            "threshold": 1 / self.point_number ** 1.7,
+        }
 
-        self.scout_count = point_number * 5
-
-        self.ant_count = point_number * 3
-        self.evaporation_coefficient = min(0.7, 1/log(log(point_number**1.3)))
-        self.threshold = 1 / point_number ** 1.7
-
+    def post_init_params(self):
         self.line_pheromones = {
             (fr, to): 1
-            for fr in range(point_number)
-            for to in range(fr + 1, point_number)
+            for fr in range(self.point_number)
+            for to in range(fr + 1, self.point_number)
         }
         self.ants = [self.Ant(self) for _ in range(self.ant_count)]
 
@@ -385,7 +433,7 @@ class AntColony(AlgorithmAbstract):
         sorted_paths = self.sort_paths(unique_paths)
         return sorted_paths
 
-    def scout_area(self):
+    def algorithm_cycle(self):
         paths = [ant.hit_road() for ant in self.ants]
         sorted_paths = self.filter_paths(paths)
 
@@ -393,12 +441,8 @@ class AntColony(AlgorithmAbstract):
             self.path = sorted_paths.pop(0).copy()
             self.update_pheromones(sorted_paths)
 
-    def do_one_step(self):
-        self.counter += 1
-        self.scout_area()
-        self.log()
-        if self.counter > self.scout_count:
-            self.stop = True
+    def stop_condition(self):
+        return self.counter > self.scout_count
 
 
 class BeesColony(AlgorithmAbstract):
@@ -443,22 +487,31 @@ class BeesColony(AlgorithmAbstract):
 
     # ====================
 
+    scout_count: int
+    onlooker_count: int
+    employed_count: int
+    bee_count: int
+    source_count: int
+    nectar: int
+    max_change: int
+    decrement_counter: int
+
     sources: list[Source]
     bees: list[Bee]
 
-    def __init__(self, point_number=100):
-        super().__init__(point_number)
+    def get_default_params(self):
+        return {
+            "scout_count": self.point_number * 1,
+            "onlooker_count": self.point_number * 5,
+            "employed_count": self.point_number * 10,
+            "bee_count": lambda s: s.scout_count + s.onlooker_count + s.employed_count,
+            "source_count": lambda s: s.bee_count * 2,
+            "nectar": lambda s: s.onlooker_count * 3,
+            "max_change": 10,
+            "decrement_counter": self.point_number * 4,
+        }
 
-        self.scout_count = point_number * 1
-        self.onlooker_count = point_number * 5
-        self.employed_count = point_number * 10
-        self.bee_count = self.scout_count + self.onlooker_count + self.employed_count
-
-        self.source_count = self.bee_count * 2
-        self.nectar = self.onlooker_count * 3
-        self.max_change = 10
-        self.decrement_counter = point_number * 4
-
+    def post_init_params(self):
         self.bees = [
             *(
                 self.Bee("scout", colony=self)
@@ -493,30 +546,25 @@ class BeesColony(AlgorithmAbstract):
             func(nearby_path)
         return BeesColony.Source(nearby_path, self.nectar)
 
-    def collect(self):
+    def algorithm_cycle(self):
         for bee in self.bees:
             bee.fly()
 
-        all_sources = self.sources + [bee.source for bee in self.bees]
-        all_sources = self.sort_paths(all_sources)
-
+        all_sources = self.sort_paths(self.sources + [bee.source for bee in self.bees])
         if all_sources[0].length < self.path.length:
             self.path = all_sources[0].path.copy()
 
         active_sources = list(filter(attrgetter("nectar"), all_sources))
         self.sources = active_sources[:self.source_count]
 
-    def do_one_step(self):
-        self.collect()
-        self.log(self.sources[0].length)
         if not self.counter % self.decrement_counter:
             self.max_change -= 1
 
-        if not self.max_change:
-            self.stop = True
+    def stop_condition(self):
+        return not self.max_change
 
 
-# ============================================================ algorithm
+# === main =============================================================
 
 
 def main():
