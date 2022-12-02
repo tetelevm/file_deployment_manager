@@ -6,6 +6,7 @@ the correctness of the realization of algorithms.
 from __future__ import annotations
 import random
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from math import log
 from operator import attrgetter
 from tkinter import Tk, Canvas
@@ -397,6 +398,121 @@ class AntColony(AlgorithmAbstract):
         self.scout_area()
         self.log()
         if self.counter > self.scout_count:
+            self.stop = True
+
+
+class BeesColony(AlgorithmAbstract):
+
+    @dataclass
+    class Source:
+        path: Path
+        nectar: int
+
+        @property
+        def length(self) -> float:
+            return self.path.length
+
+    class Bee:
+        source: BeesColony.Source
+        types = ["scout", "onlooker", "employee"]
+
+        def __init__(self, type: str, colony: BeesColony):
+            self.colony = colony
+            self.fly = self.get_fly_func(type)
+
+        def _fly_as_scout(self):
+            self.source = self.colony.get_random_source()
+
+        def _fly_as_onlooker(self):
+            best_source = self.colony.get_best_source()
+            best_source.nectar -= 1
+            self.source = self.colony.get_nearby_source(best_source)
+
+        def _fly_as_employee(self):
+            best_source = self.colony.get_best_source()
+            self.source = self.colony.get_nearby_source(best_source)
+            self.source.nectar -= 1
+
+        def get_fly_func(self, type: str):
+            fly_as_type = {
+                "scout": self._fly_as_scout,
+                "onlooker": self._fly_as_onlooker,
+                "employee": self._fly_as_employee,
+            }
+            return fly_as_type[type]
+
+    # ====================
+
+    sources: list[Source]
+    bees: list[Bee]
+
+    def __init__(self, point_number=100):
+        super().__init__(point_number)
+
+        self.scout_count = point_number * 1
+        self.onlooker_count = point_number * 5
+        self.employed_count = point_number * 10
+        self.bee_count = self.scout_count + self.onlooker_count + self.employed_count
+
+        self.source_count = self.bee_count * 2
+        self.nectar = self.onlooker_count * 3
+        self.max_change = 10
+        self.decrement_counter = point_number * 4
+
+        self.bees = [
+            *(
+                self.Bee("scout", colony=self)
+                for _ in range(self.scout_count)
+            ),
+            *(
+                self.Bee("onlooker", colony=self)
+                for _ in range(self.onlooker_count)
+            ),
+            *(
+                self.Bee("employee", colony=self)
+                for _ in range(self.employed_count)
+            ),
+        ]
+        self.sources = []
+
+    def get_random_source(self) -> Source:
+        source = BeesColony.Source(self.path.copy(), self.nectar)
+        source.path.shuffle()
+        return source
+
+    def get_best_source(self) -> Source:
+        for source in self.sources:
+            if source.nectar:
+                return source
+        return self.get_random_source()
+
+    def get_nearby_source(self, source: Source) -> Source:
+        nearby_path = source.path.copy()
+        for _ in range(self.max_change):
+            func = random.choice(Path.modify_funcs)
+            func(nearby_path)
+        return BeesColony.Source(nearby_path, self.nectar)
+
+    def collect(self):
+        for bee in self.bees:
+            bee.fly()
+
+        all_sources = self.sources + [bee.source for bee in self.bees]
+        all_sources = self.sort_paths(all_sources)
+
+        if all_sources[0].length < self.path.length:
+            self.path = all_sources[0].path.copy()
+
+        active_sources = list(filter(attrgetter("nectar"), all_sources))
+        self.sources = active_sources[:self.source_count]
+
+    def do_one_step(self):
+        self.collect()
+        self.log(self.sources[0].length)
+        if not self.counter % self.decrement_counter:
+            self.max_change -= 1
+
+        if not self.max_change:
             self.stop = True
 
 
