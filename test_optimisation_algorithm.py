@@ -9,13 +9,31 @@ from abc import ABC, abstractmethod
 from math import log
 from operator import attrgetter
 from tkinter import Tk, Canvas
-from typing import Iterable
+from typing import Iterable, Protocol, TypeVar
 
 
+# ======================================================================
 
-flip_coin = lambda: random.random() > 0.5
+
+def flip_coin() -> bool:
+    return random.random() > 0.5
+
+
+class _Sortable_V(Protocol):
+    length: float
+
+
+class _Sortable_P(Protocol):
+    @property
+    def length(self) -> float:
+        return 0.
+
+
+SortableT = TypeVar("SortableT", bound=_Sortable_V | _Sortable_P)
+
 
 # travelling salesman problem and drawing of the result ================
+
 
 class Point:
     def __init__(self, number: int, x_min=20, x_max=520, y_min=20, y_max=520):
@@ -42,8 +60,8 @@ class Path:
 
         # cache shared between all paths
         self.cache_len: dict[tuple[int, int], float] = dict()
-        for i in self.order_visits:
-            for j in range(point_number):
+        for i in range(point_number):
+            for j in range(i, point_number):
                 self.update_line_length(i, j)
 
     def update_line_length(self, i: int, j: int):
@@ -92,16 +110,24 @@ class Path:
         other_order = other.order_visits[start_ind:] + other.order_visits[:start_ind]
         return self.order_visits == other_order
 
-    def swap_points(self):
-        i, j = random.sample(range(self.point_number), k=2)
-        points = self.order_visits
-        points[i], points[j] = points[j], points[i]
+    def shuffle(self):
+        random.shuffle(self.order_visits)
         self.set_order(self.order_visits)
 
-    def move_point(self):
-        i, j = random.sample(range(self.point_number), k=2)
-        self.order_visits.insert(j, self.order_visits.pop(i))
-        self.set_order(self.order_visits)
+    @staticmethod
+    def swap_points(path: Path):
+        i, j = random.sample(range(path.point_number), k=2)
+        points = path.order_visits
+        points[i], points[j] = points[j], points[i]
+        path.set_order(path.order_visits)
+
+    @staticmethod
+    def move_point(path: Path):
+        i, j = random.sample(range(path.point_number), k=2)
+        path.order_visits.insert(j, path.order_visits.pop(i))
+        path.set_order(path.order_visits)
+
+    modify_funcs = [swap_points, move_point]
 
 
 class Tester:
@@ -156,19 +182,38 @@ class AlgorithmAbstract(ABC):
     algorithm.
     """
 
+    point_number: int
+    path: Path
+    stop: bool
+
     def __init__(self, point_number=100):
         self.point_number = point_number
         self.path = Path(point_number)
         self.stop = False
 
+        self.counter = 0
         self._debug_info = []
 
-    def log(self, iteration):
-        info = f"{iteration: <10}  ==  {self.path.length: <20}"
+        self.log(_counter="start")
+
+    def log(self, *args, _counter: str = None):
+        counter = _counter or self.counter
+        info = [f"{counter: <6}", f"{self.path.length: <20}"]
+
+        if args:
+            info.extend(args)
+
         if self._debug_info:
-            info += " >| " + " | ".join(str(arg) for arg in self._debug_info)
+            info.extend(self._debug_info)
             self._debug_info = []
-        print(info)
+
+        print(" | ".join(str(arg) for arg in info))
+
+        self.counter += 1
+
+    @staticmethod
+    def sort_paths(paths: list[SortableT]) -> list[SortableT]:
+        return sorted(paths, key=attrgetter("length"))
 
     @abstractmethod
     def do_one_step(self):
@@ -177,7 +222,6 @@ class AlgorithmAbstract(ABC):
 
 class SimulatedAnnealing(AlgorithmAbstract):
     temperature: float
-    cooling_coefficient: float
 
     def __init__(self, point_number=100):
         super().__init__(point_number)
@@ -193,15 +237,11 @@ class SimulatedAnnealing(AlgorithmAbstract):
 
     def make_change(self):
         for point in range(self.point_number):
-            new_path = self.path.copy()
-            new_path.swap_points()
-            if self.make_decision(new_path.length):
-                self.path = new_path
-
-            new_path = self.path.copy()
-            new_path.move_point()
-            if self.make_decision(new_path.length):
-                self.path = new_path
+            for modify_func in Path.modify_funcs:
+                new_path = self.path.copy()
+                modify_func(new_path)
+                if self.make_decision(new_path.length):
+                    self.path = new_path
 
     def do_one_step(self):
         self.make_change()
@@ -212,26 +252,26 @@ class SimulatedAnnealing(AlgorithmAbstract):
 
 
 class GeneticAlgorithm(AlgorithmAbstract):
-    child_count: int
-    count_best: int
     population: list[Path]
 
     def __init__(self, point_number=100):
         super().__init__(point_number)
 
-        self.population_number = 0
         self.population_number_max = (point_number // 1.5) ** 2
         self.child_count = 10
         self.count_best = 10
         self.population_count = self.child_count * self.count_best
+
         self.population = self.create_descendants(self.path, self.population_count)
+        for path in self.population:
+            path.shuffle()
 
     @staticmethod
     def create_descendants(parent_path: Path, count: int) -> list[Path]:
         return [parent_path.copy() for _ in range(count)]
 
     def filter_best_paths(self):
-        paths = sorted(self.population + [self.path], key=attrgetter("length"))
+        paths = self.sort_paths(self.population + [self.path])
         best_paths = paths[:self.count_best]
         self.path = best_paths[0]
 
@@ -244,22 +284,19 @@ class GeneticAlgorithm(AlgorithmAbstract):
     def grow_generation(self):
         # how to crossbreed paths, I have not figured out, so only mutations
         for path in self.population:
-            if flip_coin():
-                path.swap_points()
-            if flip_coin():
-                path.move_point()
+            for modify_func in Path.modify_funcs:
+                if flip_coin():
+                    modify_func(path)
         self.filter_best_paths()
 
     def do_one_step(self):
-        self.population_number += 1
         self.grow_generation()
-        self.log(self.population_number)
-        if self.population_number >= self.population_number_max:
+        self.log()
+        if self.counter >= self.population_number_max:
             self.stop = True
 
 
 class AntColony(AlgorithmAbstract):
-    line_pheromones: dict[tuple[int, int], float]
 
     class Ant:
         order: list[int]
@@ -293,10 +330,12 @@ class AntColony(AlgorithmAbstract):
 
     # ====================
 
+    line_pheromones: dict[tuple[int, int], float]
+    ants: list[Ant]
+
     def __init__(self, point_number=100):
         super().__init__(point_number)
 
-        self.scout_number = 0
         self.scout_count = point_number * 5
 
         self.ant_count = point_number * 3
@@ -342,7 +381,7 @@ class AntColony(AlgorithmAbstract):
             else:
                 unique_paths.append(new_path)
 
-        sorted_paths = sorted(unique_paths, key=attrgetter("length"))
+        sorted_paths = self.sort_paths(unique_paths)
         return sorted_paths
 
     def scout_area(self):
@@ -354,11 +393,14 @@ class AntColony(AlgorithmAbstract):
             self.update_pheromones(sorted_paths)
 
     def do_one_step(self):
-        self.scout_number += 1
+        self.counter += 1
         self.scout_area()
-        self.log(self.scout_number)
-        if self.scout_number > self.scout_count:
+        self.log()
+        if self.counter > self.scout_count:
             self.stop = True
+
+
+# ============================================================ algorithm
 
 
 def main():
@@ -376,8 +418,7 @@ def main():
     # 50 - 3000
     # 70 - 3500
     # 100  - 5000
-    # 300 -
-
+    # 300 - 9000-10000
 
 
 if __name__ == "__main__":
