@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from math import log
 from operator import attrgetter
 from tkinter import Tk, Canvas
-from typing import Iterable, Protocol, TypeVar, Any
+from typing import Iterable, Protocol, TypeVar, Any, Type
 
 
 # === funcs ============================================================
@@ -32,6 +32,9 @@ class _Sortable_P(Protocol):
 
 
 SortableT = TypeVar("SortableT", bound=_Sortable_V | _Sortable_P)
+
+
+Params = dict[str, Any]
 
 
 # === travelling salesman problem and drawing of the result ============
@@ -136,6 +139,16 @@ class Tester:
     def __init__(self, algorithm: AlgorithmAbstract):
         self.algorithm = algorithm
 
+    @staticmethod
+    def plot(data: list[tuple[float, float, float]]):
+        import matplotlib.pyplot as plt
+        values, times, labels = tuple(zip(*data))
+        plt.plot(times, values, '-s')
+        plt.axis([0, max(times), 0, max(values)])
+        for i in range(len(values)):
+            plt.annotate(round(labels[i], 5), (times[i], values[i]))
+        plt.show()
+
     def run(self) -> tuple[float, float]:
         start_time = time.time()
         while not self.algorithm.stop:
@@ -143,6 +156,29 @@ class Tester:
 
         return (self.algorithm.path.length, time.time() - start_time)
 
+    @classmethod
+    def test(
+            cls,
+            algorithm_class: Type[AlgorithmAbstract],
+            params: Params = None,
+            *,
+            n: int = 10,
+            point_number: int = 100,
+    ) -> tuple[float, float]:
+        if params is None:
+            params = algorithm_class.get_default_params(point_number)
+
+        value_sum, time_sum = 0, 0
+        for seed in range(1, n):
+            random.seed(seed)
+            algorithm = algorithm_class(point_number, params=params)
+            algorithm.disable_log()
+            tester = Tester(algorithm)
+            v, t = tester.run()
+            value_sum += v / n
+            time_sum += t / n
+
+        return (value_sum, time_sum)
 
 class Runner:
     def __init__(self, algorithm: AlgorithmAbstract):
@@ -201,7 +237,7 @@ class AlgorithmAbstract(ABC):
     path: Path
     stop: bool
 
-    def __init__(self, point_number=100, *, params: dict[str, Any] = None):
+    def __init__(self, point_number=100, *, params: Params = None):
         self.point_number = point_number
         self.path = Path(point_number)
         self.stop = False
@@ -211,7 +247,7 @@ class AlgorithmAbstract(ABC):
         self.log = self._log
 
         if params is None:
-            params = self.get_default_params()
+            params = self.get_default_params(self.point_number)
         self._params = params
 
         self.init_from_params_dct(params)
@@ -243,15 +279,16 @@ class AlgorithmAbstract(ABC):
     def sort_paths(paths: list[SortableT]) -> list[SortableT]:
         return sorted(paths, key=attrgetter("length"))
 
-    def init_from_params_dct(self, params: dict[str, Any]):
+    def init_from_params_dct(self, params: Params):
         for (field, value) in params.items():
             if callable(value):
                 setattr(self, field, value(self))
             else:
                 setattr(self, field, value)
 
+    @staticmethod
     @abstractmethod
-    def get_default_params(self) -> dict[str, Any]:
+    def get_default_params(point_number: int) -> Params:
         pass
 
     @abstractmethod
@@ -277,10 +314,11 @@ class SimulatedAnnealing(AlgorithmAbstract):
     temperature: float
     cooling_coefficient: float
 
-    def get_default_params(self):
+    @staticmethod
+    def get_default_params(point_number):
         return {
             "temperature": 10,
-            "cooling_coefficient": 1 - (1e-01 / self.point_number),
+            "cooling_coefficient": 1 - (3.e-01 / point_number),
         }
 
     def post_init_params(self):
@@ -316,11 +354,12 @@ class GeneticAlgorithm(AlgorithmAbstract):
 
     population: list[Path]
 
-    def get_default_params(self):
+    @staticmethod
+    def get_default_params(point_number):
         return {
-            "population_number_max": (self.point_number // 1.5) ** 2,
-            "child_count": 10,
-            "count_best": 10,
+            "population_number_max": (point_number * 1.2) ** 2,
+            "child_count": 7,
+            "count_best": 5,
             "population_count": lambda s: s.child_count * s.count_best,
         }
 
@@ -398,12 +437,13 @@ class AntColony(AlgorithmAbstract):
     line_pheromones: dict[tuple[int, int], float]
     ants: list[Ant]
 
-    def get_default_params(self):
+    @staticmethod
+    def get_default_params(point_number):
         return {
-            "scout_count": self.point_number * 5,
-            "ant_count": self.point_number * 3,
-            "evaporation_coefficient": min(0.7, 1/log(log(self.point_number**1.3))),
-            "threshold": 1 / self.point_number ** 1.7,
+            "scout_count": point_number * 5,
+            "ant_count": point_number * 3,
+            "evaporation_coefficient": min(0.7, 1/log(log(point_number**1.3))),
+            "threshold": 1 / point_number ** 1.7,
         }
 
     def post_init_params(self):
@@ -514,16 +554,17 @@ class BeesColony(AlgorithmAbstract):
     sources: list[Source]
     bees: list[Bee]
 
-    def get_default_params(self):
+    @staticmethod
+    def get_default_params(point_number):
         return {
-            "scout_count": self.point_number * 5,
-            "onlooker_count": self.point_number * 2,
-            "employed_count": self.point_number * 10,
+            "scout_count": point_number * 5,
+            "onlooker_count": point_number * 2,
+            "employed_count": point_number * 10,
             "bee_count": lambda s: s.scout_count + s.onlooker_count + s.employed_count,
             "source_count": lambda s: s.bee_count,
             "nectar": lambda s: s.employed_count * 4,
             "max_change": 4,
-            "decrement_counter": self.point_number * 4,
+            "decrement_counter": point_number * 4,
         }
 
     def post_init_params(self):
@@ -581,6 +622,16 @@ class BeesColony(AlgorithmAbstract):
 
 # === main =============================================================
 
+# quite optimal results by the points count (depending on the position,
+# the optimality varies in range of 10%):
+#
+# 20 - 1600-2000
+# 30 - 2200-2500
+# 50 - 3000
+# 70 - 3500
+# 100  - 4800
+# 300 - 9000-10000
+
 
 def main():
     algorithm = BeesColony(50)
@@ -589,57 +640,43 @@ def main():
     runner.run()
     runner.root.mainloop()
 
-    # quite optimal results by the points count (depending on the position,
-    # the optimality varies in range of 10%):
-    #
-    # 20 - 1600-2000
-    # 30 - 2200-2500
-    # 50 - 3000
-    # 70 - 3500
-    # 100  - 5000
-    # 300 - 9000-10000
 
-
-def test_main():
+def test_main(plot: bool = False):
     Algorithm = SimulatedAnnealing
     point_number = 50
-    params = [
-        {
-            "temperature": 10,
-            "cooling_coefficient": 1 - (2. / point_number),
-        },
-        {
-            "temperature": 10,
-            "cooling_coefficient": 1 - (0.1 / point_number),
-        },
-        {
-            "temperature": 10,
-            "cooling_coefficient": 1 - (0.3 / point_number),
-        },
-        {
-            "temperature": 10,
-            "cooling_coefficient": 1 - (0.1 / point_number),
-        },
+    field = "cooling_coefficient"
+    variants = [
+        1 - (2.e-00 / point_number),
+        1 - (1.e-00 / point_number),
+        1 - (5.e-01 / point_number),
+        1 - (3.e-01 / point_number),
+        1 - (1.e-01 / point_number),
     ]
-    test_field = "cooling_coefficient"
 
-    header = f"{'value': <20} | {'value': <20} | {test_field}"
+    header = f"{'value': <20} | {'time': <20} | {field}"
     print(header)
-    print("-" * len (header))
+    print("-" * len(header))
 
-    for param in params:
-        value_sum, time_sum = 0, 0
-        for seed in range(1, 5):
-            random.seed(seed)
-            algorithm = Algorithm(point_number, params=param)
-            algorithm.disable_log()
-            tester = Tester(algorithm)
-            v, t = tester.run()
-            value_sum += v
-            time_sum += t
-        print(f"{value_sum: <20} | {time_sum: <20} | {param[test_field]}")
+    params = Algorithm.get_default_params(point_number)
+    data = []
+    for variant in variants:
+        params[field] = variant
+        value_sum, time_sum = Tester.test(Algorithm, params, point_number=point_number)
+        data.append((value_sum, time_sum, variant))
+        print(f"{value_sum: <20} | {time_sum: <20} | {variant}")
+    print("-" * len(header))
+
+    if plot:
+        try:
+            Tester.plot(data)
+        except ImportError:
+            msg = (
+                "The `matplotlib` package is not installed, it is not"
+                "possible to plot the chart."
+            )
+            print("\n" + msg)
 
 
 if __name__ == "__main__":
     # main()
-    test_main()
+    test_main(True)
