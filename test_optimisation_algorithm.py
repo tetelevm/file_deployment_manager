@@ -5,6 +5,7 @@ the correctness of the realization of algorithms.
 
 from __future__ import annotations
 import random
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from math import log
@@ -132,9 +133,21 @@ class Path:
 
 
 class Tester:
-    def __init__(self, algorithm):
-        self.algorithm: AlgorithmAbstract = algorithm
-        self.line_ids = []
+    def __init__(self, algorithm: AlgorithmAbstract):
+        self.algorithm = algorithm
+
+    def run(self) -> tuple[float, float]:
+        start_time = time.time()
+        while not self.algorithm.stop:
+            self.algorithm.do_one_step()
+
+        return (self.algorithm.path.length, time.time() - start_time)
+
+
+class Runner:
+    def __init__(self, algorithm: AlgorithmAbstract):
+        self.algorithm = algorithm
+        algorithm.log(_counter="start")
 
         self.root = Tk()
         self.root.title("Test Algorithm")
@@ -145,6 +158,7 @@ class Tester:
             background="white",
         )
         self.canvas.pack()
+        self.line_ids = []
 
     def set_points(self):
         for point in self.algorithm.path.points:
@@ -187,17 +201,19 @@ class AlgorithmAbstract(ABC):
     path: Path
     stop: bool
 
-    def __init__(self, point_number=100, params: dict[str, Any] = None):
+    def __init__(self, point_number=100, *, params: dict[str, Any] = None):
         self.point_number = point_number
         self.path = Path(point_number)
         self.stop = False
 
-        self.counter = 0
+        self.counter = 1
         self._debug_info = []
         self.log = self._log
 
         if params is None:
             params = self.get_default_params()
+        self._params = params
+
         self.init_from_params_dct(params)
         self.post_init_params()
 
@@ -469,13 +485,12 @@ class BeesColony(AlgorithmAbstract):
 
         def _fly_as_onlooker(self):
             best_source = self.colony.get_best_source()
-            best_source.nectar -= 1
             self.source = self.colony.get_nearby_source(best_source)
 
         def _fly_as_employee(self):
             best_source = self.colony.get_best_source()
+            best_source.nectar -= 1
             self.source = self.colony.get_nearby_source(best_source)
-            self.source.nectar -= 1
 
         def get_fly_func(self, type: str):
             fly_as_type = {
@@ -501,13 +516,13 @@ class BeesColony(AlgorithmAbstract):
 
     def get_default_params(self):
         return {
-            "scout_count": self.point_number * 1,
-            "onlooker_count": self.point_number * 5,
+            "scout_count": self.point_number * 5,
+            "onlooker_count": self.point_number * 2,
             "employed_count": self.point_number * 10,
             "bee_count": lambda s: s.scout_count + s.onlooker_count + s.employed_count,
-            "source_count": lambda s: s.bee_count * 2,
-            "nectar": lambda s: s.onlooker_count * 3,
-            "max_change": 10,
+            "source_count": lambda s: s.bee_count,
+            "nectar": lambda s: s.employed_count * 4,
+            "max_change": 4,
             "decrement_counter": self.point_number * 4,
         }
 
@@ -568,11 +583,11 @@ class BeesColony(AlgorithmAbstract):
 
 
 def main():
-    algorithm = AntColony(100)
-    tester = Tester(algorithm)
-    tester.set_points()
-    tester.run()
-    tester.root.mainloop()
+    algorithm = BeesColony(50)
+    runner = Runner(algorithm)
+    runner.set_points()
+    runner.run()
+    runner.root.mainloop()
 
     # quite optimal results by the points count (depending on the position,
     # the optimality varies in range of 10%):
@@ -585,5 +600,46 @@ def main():
     # 300 - 9000-10000
 
 
+def test_main():
+    Algorithm = SimulatedAnnealing
+    point_number = 50
+    params = [
+        {
+            "temperature": 10,
+            "cooling_coefficient": 1 - (2. / point_number),
+        },
+        {
+            "temperature": 10,
+            "cooling_coefficient": 1 - (0.1 / point_number),
+        },
+        {
+            "temperature": 10,
+            "cooling_coefficient": 1 - (0.3 / point_number),
+        },
+        {
+            "temperature": 10,
+            "cooling_coefficient": 1 - (0.1 / point_number),
+        },
+    ]
+    test_field = "cooling_coefficient"
+
+    header = f"{'value': <20} | {'value': <20} | {test_field}"
+    print(header)
+    print("-" * len (header))
+
+    for param in params:
+        value_sum, time_sum = 0, 0
+        for seed in range(1, 5):
+            random.seed(seed)
+            algorithm = Algorithm(point_number, params=param)
+            algorithm.disable_log()
+            tester = Tester(algorithm)
+            v, t = tester.run()
+            value_sum += v
+            time_sum += t
+        print(f"{value_sum: <20} | {time_sum: <20} | {param[test_field]}")
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    test_main()
