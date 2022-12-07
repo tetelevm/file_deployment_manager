@@ -169,7 +169,7 @@ class Tester:
             params = algorithm_class.get_default_params(point_number)
 
         value_sum, time_sum = 0, 0
-        for seed in range(1, n):
+        for seed in range(0, n):
             random.seed(seed)
             algorithm = algorithm_class(point_number, params=params)
             algorithm.disable_log()
@@ -179,6 +179,7 @@ class Tester:
             time_sum += t / n
 
         return (value_sum, time_sum)
+
 
 class Runner:
     def __init__(self, algorithm: AlgorithmAbstract):
@@ -440,10 +441,10 @@ class AntColony(AlgorithmAbstract):
     @staticmethod
     def get_default_params(point_number):
         return {
-            "scout_count": point_number * 5,
-            "ant_count": point_number * 3,
-            "evaporation_coefficient": min(0.7, 1/log(log(point_number**1.3))),
-            "threshold": 1 / point_number ** 1.7,
+            "scout_count": point_number * 8,
+            "ant_count": point_number * 10,
+            "evaporation_coefficient": 0.6,
+            "threshold": 1 / point_number ** 1.6,
         }
 
     def post_init_params(self):
@@ -622,19 +623,9 @@ class BeesColony(AlgorithmAbstract):
 
 # === main =============================================================
 
-# quite optimal results by the points count (depending on the position,
-# the optimality varies in range of 10%):
-#
-# 20 - 1600-2000
-# 30 - 2200-2500
-# 50 - 3000
-# 70 - 3500
-# 100  - 4800
-# 300 - 9000-10000
-
 
 def main():
-    algorithm = BeesColony(50)
+    algorithm = AntColony(50)
     runner = Runner(algorithm)
     runner.set_points()
     runner.run()
@@ -642,15 +633,15 @@ def main():
 
 
 def test_main(plot: bool = False):
-    Algorithm = SimulatedAnnealing
-    point_number = 50
-    field = "cooling_coefficient"
+    Algorithm = GeneticAlgorithm
+    point_number = 70
+    field = "population_number_max"
     variants = [
-        1 - (2.e-00 / point_number),
-        1 - (1.e-00 / point_number),
-        1 - (5.e-01 / point_number),
-        1 - (3.e-01 / point_number),
-        1 - (1.e-01 / point_number),
+        (point_number * 1.0) ** 2,
+        (point_number * 1.1) ** 2,
+        (point_number * 1.2) ** 2,
+        (point_number * 1.3) ** 2,
+        (point_number * 1.4) ** 2,
     ]
 
     header = f"{'value': <20} | {'time': <20} | {field}"
@@ -677,6 +668,16 @@ def test_main(plot: bool = False):
             print("\n" + msg)
 
 
+# quite optimal results by the points count (depending on the position,
+# the optimality varies in range of 10%):
+#
+# 20 - 1600-2000
+# 30 - 2200-2500
+# 50 - 3000
+# 70 - 3700
+# 100  - 4800
+# 300 - 9000-10000
+
 if __name__ == "__main__":
-    # main()
-    test_main(True)
+    main()
+    # test_main(plot=True)
