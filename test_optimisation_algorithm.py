@@ -1,6 +1,20 @@
 """
 This file has nothing to do with the project, it is just a tool to test
-the correctness of the realization of algorithms.
+the correctness of the realization of algorithms. Since the file is a
+test and is intended for the implementation of algorithms, there are no
+description of objects here.
+
+If you run the file, you can see a progressive solution to the salesman
+problem (on tkinter, no third-party libraries required). With a minimal
+setting of the `main` function (choice of algorithm and number of
+points) you can change the parameters.
+The number of points tested less than 100, the parameters of the
+algorithms were chosen for 50-100.
+Implemented algorithms:
+- SimulatedAnnealing
+- GeneticAlgorithm
+- AntColony
+- BeesColony
 """
 
 from __future__ import annotations
@@ -8,7 +22,6 @@ import random
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from math import log
 from operator import attrgetter
 from tkinter import Tk, Canvas
 from typing import Iterable, Protocol, TypeVar, Any, Type
