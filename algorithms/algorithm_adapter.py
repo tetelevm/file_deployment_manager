@@ -90,7 +90,6 @@ class BaseAlgorithm():
 
     counts: dict[str, int]
     matrix: DeploymentMatrix
-    stop: bool
     best_value: float
 
     def __init__(
@@ -121,7 +120,6 @@ class BaseAlgorithm():
         ]
         self.matrix = self.create_initial_matrix()
 
-        self.stop = False
         self.best_value = self.get_deployment_result()
         self.print_logs = print_logs
 
@@ -238,21 +236,31 @@ class BaseAlgorithm():
     def calculate(self):
         """
         Calculates until it stops :)
-        Just executes its method `.do_one_step()` until it set
-        `self.stop = True`.
+        Just executes its method `.do_one_step()` until
+        `self.stop_condition() == False`.
         """
-        while not self.stop:
+
+        self.do_one_step()
+        while not self.stop_condition():
             self.do_one_step()
         return self.matrix
+
+    # === functions to describe the logic ==============================
+
+    def stop_condition(self) -> bool:
+        """
+        This function should contain the condition when the algorithm
+        stops. If `True` is returned, the algorithm stops, otherwise it
+        continues running.
+        """
+        return True
 
     def do_one_step(self):
         """
         A method that is called during algorithm execution.
-        It is obligatory to set `self.stop = True` at the end of its
-        work, because the method is called `while not algorithm.stop`.
         The concrete implementation defined by the algorithm.
         """
-        self.stop = True
+        pass
 
 
 def get_test_data():

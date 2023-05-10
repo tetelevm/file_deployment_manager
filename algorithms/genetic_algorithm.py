@@ -149,10 +149,17 @@ class GeneticAlgorithm(BaseAlgorithm):
         self.matrix = min(self.population, key=self.get_deployment_result).copy()
         self.best_value = self.get_deployment_result()
 
+    def stop_condition(self):
+        """
+        If the generation number is greater than the maximum - it's time
+        to stop. The maximum is a fairly advanced generation, which is
+        probably optimal.
+        """
+        return self.population_number >= self.population_number_max
+
     def do_one_step(self):
         """
-        Grows a generation and prints the results. The stopping point is
-        a fairly late generation, which is very likely optimal.
+        Grows a generation and prints the results.
         """
 
         self.population_number += 1
@@ -160,8 +167,6 @@ class GeneticAlgorithm(BaseAlgorithm):
 
         if self.print_logs:
             print(f"{self.population_number: <8}  ==  {self.best_value}")
-        if self.population_number >= self.population_number_max:
-            self.stop = True
 
 
 if __name__ == "__main__":

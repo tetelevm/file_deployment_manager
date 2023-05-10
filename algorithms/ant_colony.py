@@ -161,6 +161,12 @@ class AntColony(BaseAlgorithm):
 
         self.update_pheromones(sorted_variants)
 
+    def stop_condition(self):
+        """
+        If the number of scouts more than the maximum - it's time to stop.
+        """
+        return self.scout_number > self.scout_count
+
     def do_one_step(self):
         """
         Takes a step to update the weights and prints the result.
@@ -173,8 +179,6 @@ class AntColony(BaseAlgorithm):
 
         if self.print_logs:
             print(f"{self.scout_number: <8}  ==  {self.best_value}")
-        if self.scout_number > self.scout_count:
-            self.stop = True
 
 
 if __name__ == "__main__":
