@@ -106,7 +106,7 @@ class GeneticAlgorithm(BaseAlgorithm):
         if self.check_prerequisite(child):
             return child
         else:
-            return matrix_1 if flip_coin else matrix_2
+            return matrix_1 if flip_coin() else matrix_2
 
     def crossbreed_population(self, population: POPULATION_TYPE) -> POPULATION_TYPE:
         """

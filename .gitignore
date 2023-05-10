@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 
 .idea/
+env/
 
 data.json
 result.json
