@@ -133,6 +133,12 @@ class GeneticAlgorithm(BaseAlgorithm):
         self.matrix = min(self.population, key=self.get_deployment_result).copy()
         self.best_value = self.get_deployment_result()
 
+    # ===
+
+    @property
+    def log_params(self):
+        return self.population_number
+
     def stop_condition(self):
         """
         If the generation number is greater than the maximum - it's time
@@ -148,6 +154,3 @@ class GeneticAlgorithm(BaseAlgorithm):
 
         self.population_number += 1
         self.grow_generation()
-
-        if self.print_logs:
-            print(f"{self.population_number: <8}  ==  {self.best_value}")

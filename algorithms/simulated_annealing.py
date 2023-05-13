@@ -102,6 +102,12 @@ class SimulatedAnnealing(BaseAlgorithm):
             file_ind_1, file_ind_2 = random.sample(range(self.matrix.f_count), k=2)
             self.swap_existence(file_ind_1, server_ind, file_ind_2, server_ind)
 
+    # ===
+
+    @property
+    def log_params(self):
+        return round(self.temperature, 5)
+
     def stop_condition(self):
         """
         If the temperature is below the minimum - it's time to stop.
@@ -115,6 +121,4 @@ class SimulatedAnnealing(BaseAlgorithm):
         """
 
         self.make_change()
-        if self.print_logs:
-            print(f"{format(self.temperature, '.9f'): <10}  ==  {self.best_value}")
         self.temperature *= self.cooling_coefficient

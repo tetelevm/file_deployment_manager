@@ -1,4 +1,5 @@
 import random
+from abc import abstractmethod
 
 from time_matrix_calculator import TimeMatrix
 from ._deployment_matrix import DeploymentMatrix
@@ -56,6 +57,26 @@ class BaseAlgorithm():
 
         self.best_value = self.get_deployment_result()
         self.print_logs = print_logs
+
+    def _print_logs(self):
+        """
+        If it is necessary to display logs, it prints them, otherwise
+        nothing happens.
+        """
+
+        if self.print_logs:
+            params = self.log_params
+            if isinstance(params, tuple):
+                counter, *args = params
+            else:
+                counter, args = (params, ())
+
+            extra_logs = (
+                " | ".join(str(arg) for arg in ("", *args))
+                if args else
+                ""
+            )
+            print(f"{counter: <9}  ==  {self.best_value}{extra_logs}")
 
     def create_initial_matrix(self) -> DeploymentMatrix:
         """
@@ -198,28 +219,44 @@ class BaseAlgorithm():
 
         return True
 
-    def calculate(self):
+    def calculate(self) -> DeploymentMatrix:
         """
         Calculates until it stops :)
         Just executes its method `.do_one_step()` until
         `self.stop_condition() == False`.
         """
 
-        self.do_one_step()
-        while not self.stop_condition():
+        while True:
             self.do_one_step()
+            self._print_logs()
+            if self.stop_condition():
+                break
+
         return self.matrix
 
     # === functions to describe the logic ==============================
 
+    @property
+    @abstractmethod
+    def log_params(self) -> (int | float | tuple[(int|float), ...]):
+        """
+        Returns the data that should be displayed when `print_logs == True`.
+        Returns parameter-counter (temperature, generation number), can
+        also return additional parameters for debugging (in this case
+        they will be set at the end of the logs).
+        """
+        pass
+
+    @abstractmethod
     def stop_condition(self) -> bool:
         """
         This function should contain the condition when the algorithm
         stops. If `True` is returned, the algorithm stops, otherwise it
         continues running.
         """
-        return True
+        pass
 
+    @abstractmethod
     def do_one_step(self):
         """
         A method that is called during algorithm execution.
