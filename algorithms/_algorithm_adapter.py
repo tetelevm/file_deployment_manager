@@ -1,78 +1,13 @@
-from __future__ import annotations
-from copy import deepcopy
+import random
 
-def _import_tm_class():
-    module_path = Path(__file__).parent.parent.absolute() / "time_matrix_calculator.py"
-    spec = importlib.util.spec_from_file_location("tmcpy", module_path)
-    tmcpy = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(tmcpy)
-    return tmcpy.TimeMatrix
-
-
-def _import_tm_list():
-    path_path = Path(__file__).parent.absolute() / "_default_time_matrix.py"
-    spec = importlib.util.spec_from_file_location("dtmpy", path_path)
-    dtmpy = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(dtmpy)
-    return dtmpy.time_matrix_list
-
-
-try:
-    from time_matrix_calculator import TimeMatrix
-    from ._default_time_matrix import time_matrix_list
-except ModuleNotFoundError:
-    # if run as "__main__"
-    from pathlib import Path
-    import importlib.util
-    TimeMatrix = _import_tm_class()
-    time_matrix_list = _import_tm_list()
+from time_matrix_calculator import TimeMatrix
+from ._deployment_matrix import DeploymentMatrix
+from ._default_time_matrix import time_matrix_list
 
 
 __all__ = [
     "BaseAlgorithm",
-    "DeploymentMatrix",
-    "abstract_main",
 ]
-
-
-class DeploymentMatrix:
-    """
-    The class that stores the file placement matrix on the servers.
-    """
-
-    def __init__(self, matrix: list[list[int]]):
-        self.matrix = matrix
-        self.f_count = len(matrix)
-        self.sv_count = len(matrix[0])
-        self.value = None
-
-    def __eq__(self, other: DeploymentMatrix):
-        return self.matrix == other.matrix
-
-    def __getitem__(self, index: tuple[int, int]) -> int:
-        file, server = index
-        return self.matrix[file][server]
-
-    def __setitem__(self, index: tuple[int, int], value: int):
-        if self.value is not None:
-            self.value = None
-        file, server = index
-        self.matrix[file][server] = value
-
-    def copy(self) -> DeploymentMatrix:
-        """
-        Copies itself and returns a new matrix object.
-        """
-        new_matrix = DeploymentMatrix(deepcopy(self.matrix))
-        new_matrix.value = self.value
-        return new_matrix
-
-    @classmethod
-    def null(cls, f_size, sv_size) -> DeploymentMatrix:
-        """
-        Creates an empty matrix of size FxSV.
-        """
-        return cls([[0] * sv_size for _ in range(f_size)])
 
 
 class BaseAlgorithm():
@@ -284,19 +219,3 @@ def get_test_data():
     coefficient = 1
 
     return counts, file_sizes, server_prices, server_spaces, time_matrix, coefficient
-
-
-def abstract_main(algorithm):
-    args = get_test_data()
-    alg = algorithm(*args, print_logs=True)
-
-    first_result = alg.best_value
-    alg.calculate()
-    second_result = alg.best_value
-
-    print(alg.matrix.matrix)
-    print(f"{first_result} => {second_result}")
-
-
-if __name__ == "__main__":
-    abstract_main(BaseAlgorithm)

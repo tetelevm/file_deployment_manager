@@ -1,11 +1,8 @@
 import random
 from math import log
 
-try:
-    from .algorithm_adapter import BaseAlgorithm, DeploymentMatrix
-except ImportError:
-    # if run as "__main__"
-    from algorithm_adapter import BaseAlgorithm, DeploymentMatrix, abstract_main
+from ._deployment_matrix import DeploymentMatrix
+from ._algorithm_adapter import BaseAlgorithm
 
 
 __all__ = [
@@ -179,7 +176,3 @@ class AntColony(BaseAlgorithm):
 
         if self.print_logs:
             print(f"{self.scout_number: <8}  ==  {self.best_value}")
-
-
-if __name__ == "__main__":
-    abstract_main(AntColony)

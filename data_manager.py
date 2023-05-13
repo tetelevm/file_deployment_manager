@@ -2,7 +2,7 @@ import json
 from argparse import ArgumentParser, BooleanOptionalAction
 from typing import Type
 
-from algorithms.algorithm_adapter import BaseAlgorithm
+from algorithms._algorithm_adapter import BaseAlgorithm
 from algorithms import (
     AntColony,
     BeesColony,

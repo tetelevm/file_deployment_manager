@@ -1,12 +1,7 @@
 import random
 from math import log
 
-try:
-    from .algorithm_adapter import BaseAlgorithm
-except ImportError:
-    # if run as "__main__"
-    from algorithm_adapter import BaseAlgorithm, abstract_main
-
+from ._algorithm_adapter import BaseAlgorithm
 
 __all__ = [
     "SimulatedAnnealing",
@@ -123,7 +118,3 @@ class SimulatedAnnealing(BaseAlgorithm):
         if self.print_logs:
             print(f"{format(self.temperature, '.9f'): <10}  ==  {self.best_value}")
         self.temperature *= self.cooling_coefficient
-
-
-if __name__ == "__main__":
-    abstract_main(SimulatedAnnealing)

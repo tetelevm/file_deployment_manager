@@ -1,15 +1,14 @@
 import random
 from math import log
 
-try:
-    from .algorithm_adapter import BaseAlgorithm, DeploymentMatrix
-except ImportError:
-    # if run as "__main__"
-    from algorithm_adapter import BaseAlgorithm, DeploymentMatrix, abstract_main
+from ._deployment_matrix import DeploymentMatrix
+from ._algorithm_adapter import BaseAlgorithm
+
 
 __all__ = [
     "GeneticAlgorithm",
 ]
+
 
 flip_coin = lambda: random.random() > 0.5
 POPULATION_TYPE = list[DeploymentMatrix]
@@ -42,24 +41,6 @@ class GeneticAlgorithm(BaseAlgorithm):
         """
         return [parent_matrix.copy() for _ in range(count)]
 
-    def change_existence(self, matrix: DeploymentMatrix):
-        """
-        Randomly changes the location of one file on one server.
-        """
-
-        f_ind = random.randrange(matrix.f_count)
-        s_ind = random.randrange(matrix.sv_count)
-        matrix[f_ind, s_ind] ^= 1
-
-    def swap_existence(self, matrix: DeploymentMatrix):
-        """
-        Randomly moves one file to another server.
-        """
-
-        f = random.randrange(matrix.f_count)
-        s_1, s_2 = random.sample(range(matrix.sv_count), k=2)
-        matrix[f, s_1], matrix[f, s_2] = matrix[f, s_2], matrix[f, s_1]
-
     def mutate_population(self, population: POPULATION_TYPE) -> POPULATION_TYPE:
         """
         Mutates everyone within the population and chooses the best
@@ -72,9 +53,9 @@ class GeneticAlgorithm(BaseAlgorithm):
 
         for matrix in population:
             if flip_coin():
-                self.change_existence(matrix)
+                matrix.change_existence()
             if flip_coin():
-                self.swap_existence(matrix)
+                matrix.swap_existence()
 
         population = list(filter(self.check_prerequisite, population))
         missing_count = self.count_best - len(population)
@@ -167,7 +148,3 @@ class GeneticAlgorithm(BaseAlgorithm):
 
         if self.print_logs:
             print(f"{self.population_number: <8}  ==  {self.best_value}")
-
-
-if __name__ == "__main__":
-    abstract_main(GeneticAlgorithm)
