@@ -227,26 +227,3 @@ class BaseAlgorithm():
         The concrete implementation defined by the algorithm.
         """
         pass
-
-
-def get_test_data():
-    """
-    A function that outputs test data to check the workability of the
-    algorithms.
-    """
-
-    counts = {"files": 20,  "pc": 20, "ls": 15, "cs": 7, "sv": 10}
-
-    file_sizes = [
-        56623104, 122683392, 90177536, 93323264, 81788928, 24117248, 50331648,
-        20971520, 75497472, 10485760, 0, 94371840, 73400320, 62914560, 36700160,
-        110100480, 14680064, 51380224, 42991616, 115343360,
-    ]
-
-    server_prices = [40, 100, 50, 30, 70, 20, 60, 10, 90, 80]
-    server_spaces = [838860800] * 10  # 800 mb
-
-    time_matrix = TimeMatrix(time_matrix_list)
-    coefficient = 1
-
-    return counts, file_sizes, server_prices, server_spaces, time_matrix, coefficient
