@@ -112,6 +112,37 @@ class BaseAlgorithm():
 
         return matrix
 
+    def create_random_matrix(self) -> DeploymentMatrix:
+        """
+        Creates a random distribution matrix.
+        It works similarly to `.create_initial_matrix()`, but it does not
+        fill servers one by one, but chooses a random server (among free
+        ones) for each file.
+        """
+
+        matrix = DeploymentMatrix.null(self.counts["files"], self.counts["sv"])
+
+        server_spaces = self.server_spaces.copy()
+        for file_ind in range(matrix.f_count):
+            file_weight = self.file_sizes[file_ind]
+
+            available_servers = [
+                server_index
+                for (server_index, space) in enumerate(server_spaces)
+                if space >= file_weight
+            ]
+            if not available_servers:
+                # if for some reason there is no space in the random allocation,
+                # then let it not be a random allocation, but definitely available
+                return self.create_initial_matrix()
+
+            server_index = random.choice(available_servers)
+            server_spaces[server_index] -= file_weight
+
+            matrix[file_ind, server_index] = 1
+
+        return matrix
+
     def get_deployment_result(self, deployment_matrix: DeploymentMatrix = None) -> float:
         """
         Calculates the cost of placing the files, and then calculates

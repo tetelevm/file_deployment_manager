@@ -32,7 +32,10 @@ class GeneticAlgorithm(BaseAlgorithm):
         self.population_number_max = 100 * 1.1 ** log(all_count, 1.6)
         self.child_count = 10
         self.count_best = 10
-        self.population = self.create_descendants(self.matrix, self.count_best)
+        self.population = [
+            self.create_random_matrix()
+            for _ in range(self.count_best)
+        ]
 
     @staticmethod
     def create_descendants(parent_matrix: DeploymentMatrix, count: int) -> POPULATION_TYPE:
